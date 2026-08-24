@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Kỹ Thuật Cửa Sổ Trượt (Sliding Window) - FIXED</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --window-bg: rgba(56, 189, 248, 0.15);
+            --window-border: #38bdf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            max-width: 900px;
+        }
+
+        header h1 {
+            font-size: 2.2rem;
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Controls Panel */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"], input[type="number"], select {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        button {
+            background-color: #334155;
+            color: var(--text-primary);
+            border: none;
+            border-radius: 6px;
+            padding: 10px 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #475569;
+            transform: translateY(-1px);
+        }
+
+        button.primary {
+            background-color: #0284c7;
+        }
+        button.primary:hover {
+            background-color: #0369a1;
+        }
+
+        button.success {
+            background-color: #16a34a;
+        }
+        button.success:hover {
+            background-color: #15803d;
+        }
+
+        button.danger {
+            background-color: #dc2626;
+        }
+        button.danger:hover {
+            background-color: #b91c1c;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Speed slider */
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-group input {
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        /* Dashboard Metrics */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        .metric-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .metric-title {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .metric-value.highlight-green {
+            color: var(--accent-green);
+        }
+
+        /* Visualization Area */
+        .viz-container {
+            position: relative;
+            padding: 40px 20px 30px 20px;
+            overflow-x: auto;
+            display: flex;
+            justify-content: center;
+            min-height: 180px;
+        }
+
+        .array-wrapper {
+            display: flex;
+            gap: 12px;
+            position: relative;
+            padding: 10px 0;
+        }
+
+        .array-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 60px;
+            position: relative;
+        }
+
+        .element-idx {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-family: monospace;
+        }
+
+        .element-box {
+            width: 60px;
+            height: 60px;
+            background: #0f172a;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Element States */
+        .element-box.in-window {
+            border-color: var(--accent-blue);
+            background: rgba(56, 189, 248, 0.1);
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+        }
+
+        .element-box.leaving {
+            border-color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+        }
+
+        .element-box.entering {
+            border-color: var(--accent-green);
+            background: rgba(34, 197, 94, 0.25);
+            color: #86efac;
+            transform: translateY(8px) scale(1.05);
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+        }
+
+        .element-box.is-max {
+            border-color: var(--accent-purple);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.6);
+        }
+
+        /* Window Highlight Overlay - FIXED styles */
+        .window-overlay {
+            position: absolute;
+            /* Remove hardcoded top/height - controlled by JS */
+            background: var(--window-bg);
+            border: 2px dashed var(--window-border);
+            border-radius: 12px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .window-label {
+            position: absolute;
+            bottom: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--accent-blue);
+            background: #0f172a;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--accent-blue);
+            white-space: nowrap;
+        }
+
+        /* Step Explanation Box */
+        .explanation-box {
+            background: #0f172a;
+            border-left: 4px solid var(--accent-blue);
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            font-size: 1rem;
+            line-height: 1.6;
+            min-height: 80px;
+        }
+
+        .formula-highlight {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-top: 6px;
+        }
+
+        .text-red { color: var(--accent-red); font-weight: bold; }
+        .text-green { color: var(--accent-green); font-weight: bold; }
+        .text-blue { color: var(--accent-blue); font-weight: bold; }
+        .text-purple { color: var(--accent-purple); font-weight: bold; }
+
+        /* History Log Table */
+        .log-section {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: #0f172a;
+            color: var(--text-secondary);
+            padding: 10px;
+            position: sticky;
+            top: 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+        }
+
+        tr.active-row {
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        tr.max-row {
+            background: rgba(168, 85, 247, 0.15);
+            font-weight: bold;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .badge-max {
+            background: var(--accent-purple);
+            color: white;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            header h1 { font-size: 1.6rem; }
+            .element-box { width: 45px; height: 45px; font-size: 1rem; }
+            .element-box { width: 45px; }
+            .array-item { width: 45px; }
+            /* Controller for responsive vertical visual adjustment if needed */
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🔍 Mô Phỏng Cửa Sổ Trượt (Sliding Window) - FIXED</h1>
+        <p>Kỹ thuật tối ưu hóa giúp tính tổng đoạn con liên tiếp độ dài <b>mid</b> với độ phức tạp <b>O(N)</b> thay vì O(N × mid).</p>
+        <p style="color: #6ee7b7; margin-top: 5px;">Visual overlay positioning logic has been completely rebuilt to perfectly enclose the elements.</p>
+    </header>
+
+    <div class="main-container">
+        <!-- Configuration Card -->
+        <div class="card">
+            <div class="controls-grid">
+                <div class="input-group" style="grid-column: span 2;">
+                    <label for="array-input">Mảng số nguyên (phân cách bằng dấu phẩy):</label>
+                    <input type="text" id="array-input" value="2, 1, 5, 1, 3, 2, 9, 7, 4, 2">
+                </div>
+                <div class="input-group">
+                    <label for="window-size">Độ dài cửa sổ (mid / k):</label>
+                    <input type="number" id="window-size" value="3" min="1" max="15">
+                </div>
+                <div class="input-group">
+                    <label>Mẫu dữ liệu có sẵn:</label>
+                    <select id="preset-select" onchange="loadPreset()">
+                        <option value="default">Mẫu 1: Nhỏ gọn (10 phần tử)</option>
+                        <option value="increasing">Mẫu 2: Tăng dần (8 phần tử)</option>
+                        <option value="peaks">Mẫu 3: Đỉnh núi biến động (12 phần tử)</option>
+                        <option value="random">Mẫu 4: Ngẫu nhiên (12 phần tử)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button id="btn-reset" onclick="resetSimulation()">🔄 Khởi tạo lại</button>
+                <button id="btn-prev" onclick="prevStep()">⏮ Bước trước</button>
+                <button id="btn-play" class="primary" onclick="togglePlay()">▶ Tự động chạy</button>
+                <button id="btn-next" class="success" onclick="nextStep()">Bước tiếp ⏭</button>
+
+                <div class="slider-group" style="margin-left: 15px;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary);">Tốc độ:</span>
+                    <input type="range" id="speed-range" min="300" max="2000" step="100" value="1000" onchange="updateSpeed()">
+                    <span id="speed-label" style="font-size: 0.85rem; color: var(--accent-blue); min-width: 45px;">1.0s</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Stat Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-title">Vị trí Cửa sổ [L ... R]</div>
+                <div class="metric-value" id="metric-range">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Tổng hiện tại (Current Sum)</div>
+                <div class="metric-value" id="metric-current-sum">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Tổng lớn nhất (Max Sum)</div>
+                <div class="metric-value highlight-green" id="metric-max-sum">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Cửa sổ có tổng Max</div>
+                <div class="metric-value text-purple" id="metric-max-range">-</div>
+            </div>
+        </div>
+
+        <!-- Visual Array Animation Canvas -->
+        <div class="card">
+            <div class="viz-container" id="viz-container">
+                <div class="array-wrapper" id="array-wrapper">
+                    <!-- Dynamic rendering of elements -->
+                </div>
+                <div class="window-overlay" id="window-overlay" style="display: none;">
+                    <div class="window-label" id="window-label">Cửa sổ mid = 3</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Explanation / Formula Step -->
+        <div class="card">
+            <h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 10px;">📋 DIỄN GIẢI BƯỚC THỰC THI</h3>
+            <div class="explanation-box" id="explanation">
+                Bấm <b>"Bước tiếp"</b> hoặc <b>"Tự động chạy"</b> để bắt đầu mô phỏng kỹ thuật Cửa sổ trượt.
+            </div>
+        </div>
+
+        <!-- Table History -->
+        <div class="card">
+            <h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 12px;">📊 BẢNG LỊCH SỬ CÁC CỬA SỔ DỊCH CHUYỂN</h3>
+            <div class="log-section">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bước</th>
+                            <th>Đoạn chỉ số [L..R]</th>
+                            <th>Các phần tử trong cửa sổ</th>
+                            <th>Công thức tính tổng</th>
+                            <th>Tổng thu được</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body">
+                        <!-- Dynamic logs -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global Simulation State
+        let arr = [];
+        let mid = 3;
+        let steps = [];
+        let currentStepIdx = -1;
+        let isPlaying = false;
+        let playInterval = null;
+        let animationSpeed = 1000;
+
+        // Load Preset Data
+        function loadPreset() {
+            const preset = document.getElementById('preset-select').value;
+            const arrayInput = document.getElementById('array-input');
+            const windowInput = document.getElementById('window-size');
+
+            if (preset === 'default') {
+                arrayInput.value = "2, 1, 5, 1, 3, 2, 9, 7, 4, 2";
+                windowInput.value = 3;
+            } else if (preset === 'increasing') {
+                arrayInput.value = "1, 2, 3, 4, 5, 6, 7, 8";
+                windowInput.value = 4;
+            } else if (preset === 'peaks') {
+                arrayInput.value = "4, 2, 1, 7, 8, 1, 2, 8, 1, 0";
+                windowInput.value = 3;
+            } else if (preset === 'random') {
+                const randomArr = Array.from({length: 12}, () => Math.floor(Math.random() * 15) + 1);
+                arrayInput.value = randomArr.join(", ");
+                windowInput.value = 4;
+            }
+            resetSimulation();
+        }
+
+        // Parse inputs and pre-generate steps
+        function initSimulation() {
+            const rawArr = document.getElementById('array-input').value;
+            arr = rawArr.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+            mid = parseInt(document.getElementById('window-size').value);
+
+            if (arr.length === 0) {
+                alert("Vui lòng nhập mảng số hợp lệ!");
+                return false;
+            }
+
+            if (mid <= 0 || mid > arr.length) {
+                alert(`Độ dài cửa sổ (mid = ${mid}) phải nằm trong khoảng từ 1 đến độ dài mảng (${arr.length})!`);
+                return false;
+            }
+
+            // Generate Execution Steps
+            steps = [];
+            
+            // Step 1: Initial window sum calculation (First 'mid' elements)
+            let initialSum = 0;
+            for (let i = 0; i < mid; i++) {
+                initialSum += arr[i];
+            }
+
+            let currentMaxSum = initialSum;
+            let maxRange = [0, mid - 1];
+
+            steps.push({
+                type: 'INIT',
+                left: 0,
+                right: mid - 1,
+                leavingIdx: null,
+                enteringIdx: null,
+                currSum: initialSum,
+                prevSum: 0,
+                maxSum: currentMaxSum,
+                maxRange: [...maxRange],
+                explanation: `<b>Khởi tạo cửa sổ đầu tiên</b> từ vị trí <span class="text-blue">[0 ... ${mid - 1}]</span>.<br>` + 
+                             `Tính tổng thủ công các phần tử đầu tiên: <span class="formula-highlight">${arr.slice(0, mid).join(' + ')} = ${initialSum}</span>`
+            });
+
+            // Slide the window through the rest of the array
+            let prevSum = initialSum;
+            for (let i = mid; i < arr.length; i++) {
+                const leavingIdx = i - mid;
+                const enteringIdx = i;
+                const newSum = prevSum - arr[leavingIdx] + arr[enteringIdx];
+                
+                let isNewMax = false;
+                if (newSum > currentMaxSum) {
+                    currentMaxSum = newSum;
+                    maxRange = [leavingIdx + 1, enteringIdx];
+                    isNewMax = true;
+                }
+
+                steps.push({
+                    type: 'SLIDE',
+                    left: leavingIdx + 1,
+                    right: enteringIdx,
+                    leavingIdx: leavingIdx,
+                    enteringIdx: enteringIdx,
+                    currSum: newSum,
+                    prevSum: prevSum,
+                    maxSum: currentMaxSum,
+                    maxRange: [...maxRange],
+                    isNewMax: isNewMax,
+                    explanation: `<b>Dịch cửa sổ sang phải 1 vị trí</b> sang đoạn <span class="text-blue">[${leavingIdx + 1} ... ${enteringIdx}]</span>.<br>` +
+                                 `Loại phần tử đi ra <span class="text-red">arr[${leavingIdx}] = ${arr[leavingIdx]}</span>, ` +
+                                 `Thêm phần tử mới đi vào <span class="text-green">arr[${enteringIdx}] = ${arr[enteringIdx]}</span>.<br>` +
+                                 `<span class="formula-highlight">Tổng mới = ${prevSum} - <span class="text-red">${arr[leavingIdx]}</span> + <span class="text-green">${arr[enteringIdx]}</span> = ${newSum}</span>` +
+                                 (isNewMax ? ` <span class="text-purple">🎉 (Kỷ lục tổng lớn nhất mới!)</span>` : '')
+                });
+
+                prevSum = newSum;
+            }
+
+            renderArrayUI();
+            return true;
+        }
+
+        // Render Static Array Blocks
+        function renderArrayUI() {
+            const wrapper = document.getElementById('array-wrapper');
+            wrapper.innerHTML = '';
+
+            arr.forEach((val, idx) => {
+                const item = document.createElement('div');
+                item.className = 'array-item';
+                item.innerHTML = `
+                    <div class="element-idx">[${idx}]</div>
+                    <div class="element-box" id="box-${idx}">${val}</div>
+                `;
+                wrapper.appendChild(item);
+            });
+
+            // Reset Overlay
+            const overlay = document.getElementById('window-overlay');
+            overlay.style.display = 'none';
+        }
+
+        // Update UI to reflect state at currentStepIdx
+        function updateUI() {
+            if (currentStepIdx < 0 || currentStepIdx >= steps.length) return;
+
+            const step = steps[currentStepIdx];
+
+            // 1. Reset all element box classes
+            arr.forEach((_, idx) => {
+                const box = document.getElementById(`box-${idx}`);
+                box.className = 'element-box';
+                if (idx >= step.left && idx <= step.right) {
+                    box.classList.add('in-window');
+                }
+            });
+
+            // 2. Highlight leaving and entering elements during SLIDE step
+            if (step.leavingIdx !== null) {
+                const leavingBox = document.getElementById(`box-${step.leavingIdx}`);
+                if (leavingBox) leavingBox.classList.add('leaving');
+            }
+            if (step.enteringIdx !== null) {
+                const enteringBox = document.getElementById(`box-${step.enteringIdx}`);
+                if (enteringBox) enteringBox.classList.add('entering');
+            }
+
+            // === INSERTED FIXED POSITIONING SCRIPT FROM PYTHON CONTEXT ===
+            
+// === Fixed positioning logic for overlay window ===
+
+// 3. Move Window Overlay Box
+const overlay = document.getElementById('window-overlay');
+const firstBox = document.getElementById(`box-${step.left}`);
+const lastBox = document.getElementById(`box-${step.right}`);
+const vizContainer = document.getElementById('viz-container');
+
+if (firstBox && lastBox && vizContainer) {
+    overlay.style.display = 'block';
+
+    // Get absolute rectangles of containers and elements
+    const vizRect = vizContainer.getBoundingClientRect();
+    const firstRect = firstBox.getBoundingClientRect();
+    const lastRect = lastBox.getBoundingClientRect();
+
+    // Visual balance configuration (using variables passed from Python context)
+    const paddingX = 8; // Separation outside box (total)
+    const paddingY = 10; // Vertical separation (total)
+    const boxHeight = 60;
+
+    // Calculate Positioning RELATIVE to the VIZ-CONTAINER boundary box
+
+    // 1. HORIZONTAL (Left & Width)
+    // Find the total width enclosing the box borders, relative to the container
+    const leftBoundaryAbsolute = firstRect.left - vizRect.left;
+    const rightBoundaryAbsolute = lastRect.right - vizRect.left;
+
+    // Shift left slightly for visual balance (negative value to go outside)
+    overlay.style.left = `${leftBoundaryAbsolute - (paddingX / 2)}px`;
+    // Width encloses boundaries plus visual padding
+    overlay.style.width = `${(rightBoundaryAbsolute - leftBoundaryAbsolute) + paddingX}px`;
+
+    // 2. VERTICAL (Top & Height)
+    // Viz-container has padding-top: 40px, but it's cleaner to calculate relative to box.
+    // BOX is 60x60. Visual overlay height should surround it.
+    
+    // Find the vertical center line of the first box within viz-container
+    const firstBoxAbsoluteTop = firstRect.top - vizRect.top;
+    const firstBoxAbsoluteCenterY = firstBoxAbsoluteTop + (boxHeight / 2);
+
+    // Calculate vertical position and height for overlay centered on box
+    const overlayHeight = boxHeight + paddingY;
+    const overlayTop = firstBoxAbsoluteCenterY - (overlayHeight / 2);
+
+    overlay.style.top = `${overlayTop}px`;
+    overlay.style.height = `${overlayHeight}px`;
+
+    // Update the label text
+    document.getElementById('window-label').innerText = `Đoạn [${step.left} ... ${step.right}] (mid = ${mid})`;
+}
+
+            // ============================================================
+
+            // 4. Update Metrics Dashboard
+            document.getElementById('metric-range').innerText = `[${step.left} ... ${step.right}]`;
+            document.getElementById('metric-current-sum').innerText = step.currSum;
+            document.getElementById('metric-max-sum').innerText = step.maxSum;
+            document.getElementById('metric-max-range').innerText = `[${step.maxRange[0]} ... ${step.maxRange[1]}]`;
+
+            // 5. Update Explanation Text
+            document.getElementById('explanation').innerHTML = step.explanation;
+
+            // 6. Update Log Table
+            renderLogTable();
+
+            // 7. Update Button States
+            document.getElementById('btn-prev').disabled = (currentStepIdx <= 0);
+            document.getElementById('btn-next').disabled = (currentStepIdx >= steps.length - 1);
+        }
+
+        // Render Log Table
+        function renderLogTable() {
+            const tbody = document.getElementById('log-table-body');
+            tbody.innerHTML = '';
+
+            for (let i = 0; i <= currentStepIdx; i++) {
+                const st = steps[i];
+                const tr = document.createElement('tr');
+                if (i === currentStepIdx) tr.className = 'active-row';
+                if (st.isNewMax || (i === 0 && st.maxSum === st.currSum)) {
+                    tr.classList.add('max-row');
+                }
+
+                let formulaStr = '';
+                if (st.type === 'INIT') {
+                    formulaStr = `Tổng ${mid} số đầu tiên`;
+                } else {
+                    formulaStr = `${st.prevSum} - <span class="text-red">${arr[st.leavingIdx]}</span> + <span class="text-green">${arr[st.enteringIdx]}</span>`;
+                }
+
+                const elementsInWindow = arr.slice(st.left, st.right + 1).join(', ');
+
+                tr.innerHTML = `
+                    <td><b>#${i + 1}</b></td>
+                    <td><span class="text-blue">[${st.left} ... ${st.right}]</span></td>
+                    <td>[${elementsInWindow}]</td>
+                    <td>${formulaStr}</td>
+                    <td><b>${st.currSum}</b></td>
+                    <td>${st.currSum === st.maxSum ? '<span class="badge badge-max">Max hiện tại</span>' : 'Đã duyệt'}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            // Auto scroll table to bottom
+            const logContainer = document.querySelector('.log-section');
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Stepping Controls
+        function nextStep() {
+            if (currentStepIdx < steps.length - 1) {
+                currentStepIdx++;
+                updateUI();
+            } else {
+                pauseSimulation();
+            }
+        }
+
+        function prevStep() {
+            if (currentStepIdx > 0) {
+                currentStepIdx--;
+                updateUI();
+            }
+        }
+
+        function resetSimulation() {
+            pauseSimulation();
+            if (initSimulation()) {
+                currentStepIdx = 0;
+                updateUI();
+            }
+        }
+
+        function togglePlay() {
+            if (isPlaying) {
+                pauseSimulation();
+            } else {
+                startPlay();
+            }
+        }
+
+        function startPlay() {
+            if (currentStepIdx >= steps.length - 1) {
+                currentStepIdx = 0;
+                updateUI();
+            }
+            isPlaying = true;
+            const playBtn = document.getElementById('btn-play');
+            playBtn.innerText = "⏸ Tạm dừng";
+            playBtn.className = "danger";
+
+            playInterval = setInterval(() => {
+                if (currentStepIdx < steps.length - 1) {
+                    nextStep();
+                } else {
+                    pauseSimulation();
+                }
+            }, animationSpeed);
+        }
+
+        function pauseSimulation() {
+            isPlaying = false;
+            if (playInterval) clearInterval(playInterval);
+            const playBtn = document.getElementById('btn-play');
+            playBtn.innerText = "▶ Tự động chạy";
+            playBtn.className = "primary";
+        }
+
+        function updateSpeed() {
+            const val = document.getElementById('speed-range').value;
+            animationSpeed = parseInt(val);
+            document.getElementById('speed-label').innerText = `${(val / 1000).toFixed(1)}s`;
+            if (isPlaying) {
+                pauseSimulation();
+                startPlay();
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            resetSimulation();
+        };
+
+        // Window resize adjustment for overlay position
+        window.onresize = function() {
+            if (currentStepIdx >= 0) {
+                updateUI();
+            }
+        };
+    </script>
+</body>
+</html>

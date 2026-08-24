@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chặt Nhị Phân Trên Kết Quả - Bài Giảng Chuyên Sâu</title>
+    
+    <!-- Framework & Thư viện -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-size: 16px;
+        }
+
+        .code-font { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 13.5px; 
+            font-variant-ligatures: none;
+        }
+        
+        .content-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 28px;
+            margin-bottom: 24px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            font-weight: 700;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        .tab-btn.active {
+            color: #4f46e5;
+            border-bottom-color: #4f46e5;
+            background: #f5f3ff;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .code-line {
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s, border-left 0.2s;
+        }
+        .code-line.active {
+            background-color: rgba(99, 102, 241, 0.25) !important;
+            border-left: 4px solid #6366f1;
+            font-weight: 700;
+        }
+
+        .sim-btn {
+            height: 32px;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 0 14px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+        .sim-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size=20 }) => {
+            const icons = {
+                theory: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" />,
+                sim: <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2-2v10a2 2 0 0 0 2 2h7 M16 19h6 M19 16l3 3-3 3" />,
+                code: <React.Fragment><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></React.Fragment>,
+                quiz: <React.Fragment><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></React.Fragment>
+            };
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-2">
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        const Latex = ({ formula, block = false }) => {
+            const ref = useRef(null);
+            useEffect(() => { 
+                if (ref.current && window.katex) {
+                    window.katex.render(formula, ref.current, { displayMode: block, throwOnError: false }); 
+                }
+            }, [formula, block]);
+            return <span ref={ref}></span>;
+        };
+
+        /* TAB 1: LÝ THUYẾT */
+        const TheoryTab = () => {
+            return (
+                <div className="fade-in space-y-6">
+                    <div className="content-card">
+                        <h2 className="text-2xl font-bold text-indigo-700 mb-4 border-b border-indigo-100 pb-2 italic flex items-center">
+                            <span className="w-2 h-8 bg-indigo-600 rounded mr-3"></span>
+                            1. Tổng Quan & Tư Duy Kỹ Thuật
+                        </h2>
+                        <div className="space-y-4 text-justify text-base leading-relaxed text-slate-600">
+                            <p>
+                                <strong>Chặt nhị phân trên kết quả (Binary Search on Answer)</strong> là một dạng nâng cao cực kỳ mạnh mẽ của thuật toán Chặt nhị phân truyền thống.
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                    <h3 className="font-bold text-slate-800 mb-2">CNP Truyền Thống</h3>
+                                    <p className="text-sm">Tìm kiếm sự tồn tại hoặc vị trí của một phần tử trong mảng đã được <strong>sắp xếp</strong>.</p>
+                                    <div className="mt-2 font-mono text-xs text-indigo-600">Ví dụ: Tìm x = 7 trong mảng [1, 3, 5, 7, 9]</div>
+                                </div>
+                                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                                    <h3 className="font-bold text-indigo-900 mb-2">CNP Trên Kết Quả</h3>
+                                    <p className="text-sm">Không tìm trên mảng, mà tìm <strong>giá trị đáp án tối ưu</strong> nằm trong khoảng không gian nghiệm <Latex formula="[L, R]" />.</p>
+                                    <div className="mt-2 font-mono text-xs text-indigo-700">Ví dụ: Tìm chiều cao máy cắt lớn nhất để thu đủ M mét gỗ</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-indigo-700 mb-4 italic flex items-center">
+                            <span className="w-2 h-6 bg-indigo-500 rounded mr-3"></span>
+                            2. Điều Kiện Tiên Quyết: Tính Đơn Điệu (Monotonicity)
+                        </h2>
+                        <div className="space-y-4 text-base leading-relaxed text-slate-600">
+                            <p>
+                                Bạn chỉ có thể áp dụng Chặt nhị phân trên kết quả nếu hàm kiểm tra tính hợp lệ <Latex formula="check(x)" /> có <strong>Tính Đơn Điệu</strong>. Nghĩa là kết quả của hàm kiểm tra có dạng chuỗi biến thiên một chiều:
+                            </p>
+                            <div className="p-4 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg font-mono text-sm space-y-2">
+                                <div>Dạng 1 (Tìm MAX): [True, True, True, True, False, False, False]</div>
+                                <div className="text-emerald-800 font-bold">➔ Ta cần tìm vị trí True cuối cùng (hoặc giá trị x lớn nhất làm check(x) = True).</div>
+                                <hr className="border-emerald-200 my-1"/>
+                                <div>Dạng 2 (Tìm MIN): [False, False, False, True, True, True, True]</div>
+                                <div className="text-emerald-800 font-bold">➔ Ta cần tìm vị trí True đầu tiên (hoặc giá trị x nhỏ nhất làm check(x) = True).</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-slate-800 mb-4 italic flex items-center">
+                            <span className="w-2 h-6 bg-slate-600 rounded mr-3"></span>
+                            3. Khung Khung Thuật Toán Chi Tiết (3 Bước)
+                        </h2>
+                        <div className="space-y-3 text-base">
+                            <div className="flex gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold shrink-0">1</div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800">Xác định miền nghiệm [L, R]</h4>
+                                    <p className="text-sm text-slate-600">Xác định giá trị nhỏ nhất khả dĩ (<Latex formula="L" />) và lớn nhất khả dĩ (<Latex formula="R" />) của đáp án bài toán.</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold shrink-0">2</div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800">Xây dựng hàm check(mid)</h4>
+                                    <p className="text-sm text-slate-600">Viết hàm kiểm tra xem giá trị đáp án tiềm năng <Latex formula="mid" /> có thỏa mãn các ràng buộc của bài toán hay không (trả về <Latex formula="true / false" />).</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold shrink-0">3</div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800">Thu hẹp miền nghiệm</h4>
+                                    <p className="text-sm text-slate-600">Tính <Latex formula="mid = (L + R) / 2" />. Nếu <Latex formula="check(mid)" /> hợp lệ, lưu lại kết quả và thu hẹp nửa thích hợp. Lặp lại đến khi <Latex formula="L > R" />.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card border-t-4 border-t-amber-500">
+                        <h2 className="text-xl font-bold text-amber-700 mb-3 italic flex items-center">
+                            <span className="w-2 h-6 bg-amber-500 rounded mr-3"></span>
+                            4. Bài Toán Ví Dụ & Lưu Ý Quan Trọng
+                        </h2>
+                        <div className="space-y-4 text-base text-slate-600 leading-relaxed">
+                            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                                <h3 className="font-bold text-amber-900 mb-1">Bài toán Cắt Gỗ (Wood Cutter)</h3>
+                                <p className="text-sm text-amber-800">
+                                    Có <Latex formula="N" /> cây gỗ với chiều cao cho trước. Cần đặt lưỡi máy cắt ở độ cao <Latex formula="H" /> sao cho tổng lượng gỗ cắt được từ các cây có chiều cao <Latex formula="> H" /> đạt tối thiểu <Latex formula="M" /> mét. Tìm độ cao <Latex formula="H" /> <strong>lớn nhất</strong>.
+                                </p>
+                            </div>
+                            
+                            <h4 className="font-bold text-slate-800">Các lỗi phổ biến học sinh cần tránh:</h4>
+                            <ul className="list-disc ml-6 space-y-2 text-sm">
+                                <li><strong className="text-rose-600">Tràn số (Overflow):</strong> Khi tính tổng trong hàm `check`, tổng có thể vượt quá giới hạn số nguyên 32-bit (`int`). Luôn dùng `long long`.</li>
+                                <li><strong className="text-rose-600">Tràn số khi tính Mid:</strong> Tránh dùng `mid = (L + R) / 2` khi $L + R$ lớn. Nên dùng `mid = L + (R - L) / 2`.</li>
+                                <li><strong className="text-rose-600">Lặp vô hạn (Infinite Loop):</strong> Cập nhật sai biên `L = mid` thay vì `L = mid + 1` hoặc `R = mid` thay vì `R = mid - 1` trong chặt nhị phân số nguyên.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 2: MÔ PHỎNG */
+        const SimulationTab = () => {
+            const trees = [4, 20, 15, 10, 17];
+            const M = 7;
+            
+            const steps = [
+                { L: 0, R: 20, mid: 10, wood: 22, ok: true,  ans: 10, line: 3, msg: "Khởi tạo L = 0, R = 20 (chiều cao cao nhất)." },
+                { L: 0, R: 20, mid: 10, wood: 22, ok: true,  ans: 10, line: 4, msg: "Thử H = mid = 10. Lượng gỗ thu được = (20-10) + (15-10) + (17-10) = 22 m." },
+                { L: 0, R: 20, mid: 10, wood: 22, ok: true,  ans: 10, line: 5, msg: "Vì 22 >= 7 (Đủ gỗ) -> H = 10 hợp lệ! Cập nhật ans = 10." },
+                { L: 11,R: 20, mid: 10, wood: 22, ok: true,  ans: 10, line: 6, msg: "Cần tìm H LỚN HƠN -> Tăng biên trái: L = mid + 1 = 11." },
+                
+                { L: 11,R: 20, mid: 15, wood: 7,  ok: true,  ans: 15, line: 4, msg: "Thử H = mid = 15. Lượng gỗ thu được = (20-15) + (17-15) = 7 m." },
+                { L: 11,R: 20, mid: 15, wood: 7,  ok: true,  ans: 15, line: 5, msg: "Vì 7 >= 7 (Vẫn đủ) -> H = 15 hợp lệ! Cập nhật ans = 15." },
+                { L: 16,R: 20, mid: 15, wood: 7,  ok: true,  ans: 15, line: 6, msg: "Thử tìm H cao hơn nữa -> L = mid + 1 = 16." },
+
+                { L: 16,R: 20, mid: 18, wood: 2,  ok: false, ans: 15, line: 4, msg: "Thử H = mid = 18. Lượng gỗ thu được = (20-18) = 2 m." },
+                { L: 16,R: 20, mid: 18, wood: 2,  ok: false, ans: 15, line: 8, msg: "Vì 2 < 7 (Thiếu gỗ) -> H = 18 quá cao! Giảm biên phải: R = mid - 1 = 17." },
+
+                { L: 16,R: 17, mid: 16, wood: 5,  ok: false, ans: 15, line: 4, msg: "Thử H = mid = 16. Lượng gỗ thu được = (20-16) + (17-16) = 5 m." },
+                { L: 16,R: 17, mid: 16, wood: 5,  ok: false, ans: 15, line: 8, msg: "Vì 5 < 7 (Thiếu gỗ) -> H = 16 vẫn quá cao! Giảm R = mid - 1 = 15." },
+
+                { L: 16,R: 15, mid: 16, wood: 5,  ok: false, ans: 15, line: 10,msg: "Hiện tại L (16) > R (15) -> Dừng vòng lặp. Đáp án H lớn nhất là 15!" }
+            ];
+
+            const [stepIdx, setStepIdx] = useState(0);
+            const [isPlaying, setIsPlaying] = useState(false);
+
+            useEffect(() => {
+                let timer;
+                if (isPlaying && stepIdx < steps.length - 1) {
+                    timer = setTimeout(() => setStepIdx(prev => prev + 1), 1200);
+                } else {
+                    setIsPlaying(false);
+                }
+                return () => clearTimeout(timer);
+            }, [isPlaying, stepIdx]);
+
+            const cur = steps[stepIdx];
+
+            const codeLines = [
+                { num: 1, code: "long long L = 0, R = max_height, ans = -1;" },
+                { num: 2, code: "while (L <= R) {" },
+                { num: 3, code: "    long long mid = L + (R - L) / 2;" },
+                { num: 4, code: "    if (checkWood(mid) >= M) { // Đủ gỗ" },
+                { num: 5, code: "        ans = mid;             // Lưu nghiệm" },
+                { num: 6, code: "        L = mid + 1;           // Thử nâng H cao hơn" },
+                { num: 7, code: "    } else {" },
+                { num: 8, code: "        R = mid - 1;           // Giảm H xuống" },
+                { num: 9, code: "    }" },
+                { num: 10,code: "}" }
+            ];
+
+            return (
+                <div className="fade-in space-y-6">
+                    {/* Bảng điều khiển mô phỏng */}
+                    <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setStepIdx(0)} className="sim-btn bg-rose-600 text-white">Reset</button>
+                            <button disabled={stepIdx === 0} onClick={() => setStepIdx(prev => prev - 1)} className="sim-btn bg-slate-700 disabled:opacity-30">◄ Trước</button>
+                            <button onClick={() => setIsPlaying(!isPlaying)} className={`sim-btn ${isPlaying ? 'bg-amber-500' : 'bg-indigo-600'}`}>
+                                {isPlaying ? 'Tạm Dừng' : 'Tự Động Chạy'}
+                            </button>
+                            <button disabled={stepIdx === steps.length - 1} onClick={() => setStepIdx(prev => prev + 1)} className="sim-btn bg-slate-700 disabled:opacity-30">Sau ►</button>
+                        </div>
+                        <div className="font-mono text-xs text-indigo-300">
+                            Bước: <span className="text-white font-bold text-sm">{stepIdx + 1}</span> / {steps.length}
+                        </div>
+                    </div>
+
+                    {/* Dữ liệu bài toán */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <span className="text-[10px] font-black uppercase text-slate-400">Chiều cao các cây</span>
+                            <div className="font-mono text-sm font-bold text-indigo-700 mt-1">[4, 20, 15, 10, 17]</div>
+                        </div>
+                        <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <span className="text-[10px] font-black uppercase text-slate-400">Số mét gỗ cần (M)</span>
+                            <div className="font-mono text-sm font-bold text-rose-600 mt-1">M = 7 mét</div>
+                        </div>
+                        <div className="p-3 bg-white rounded-xl border border-slate-200">
+                            <span className="text-[10px] font-black uppercase text-slate-400">Khoảng xét [L, R]</span>
+                            <div className="font-mono text-sm font-bold text-amber-600 mt-1">[{cur.L}, {cur.R}]</div>
+                        </div>
+                        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                            <span className="text-[10px] font-black uppercase text-emerald-600">Đáp án tạm thời (ans)</span>
+                            <div className="font-mono text-sm font-bold text-emerald-700 mt-1">{cur.ans === -1 ? "Chưa có" : `${cur.ans} m`}</div>
+                        </div>
+                    </div>
+
+                    {/* Sắp xếp hình mô phỏng và Code Highlight ngang hàng nhau */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                        {/* Trực quan hóa máy cắt gỗ */}
+                        <div className="content-card flex flex-col items-center justify-between mb-0 h-full">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Đồ thị độ cao cây gỗ & Đường cắt (H = {cur.mid})</h3>
+                            <div className="relative w-full h-64 bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-end justify-around my-auto">
+                                
+                                {/* Đường cắt H = mid */}
+                                <div 
+                                    className="absolute left-0 right-0 border-b-2 border-dashed border-rose-500 transition-all duration-300 z-10 flex items-center justify-end pr-2"
+                                    style={{ bottom: `${(cur.mid / 22) * 100}%` }}
+                                >
+                                    <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow">
+                                        Lưỡi cắt H = {cur.mid}
+                                    </span>
+                                </div>
+
+                                {/* Các cây gỗ */}
+                                {trees.map((h, i) => {
+                                    const cutHeight = Math.max(0, h - cur.mid);
+                                    return (
+                                        <div key={i} className="flex flex-col items-center h-full justify-end w-12 z-0">
+                                            <div className="text-[10px] font-bold text-slate-500 mb-1">{h}m</div>
+                                            <div 
+                                                className="w-full bg-slate-200 rounded-t relative overflow-hidden flex flex-col justify-start"
+                                                style={{ height: `${(h / 22) * 100}%` }}
+                                            >
+                                                {/* Phần gỗ bị cắt */}
+                                                {h > cur.mid && (
+                                                    <div 
+                                                        className="w-full bg-emerald-400/80 transition-all duration-300 flex items-center justify-center text-[9px] font-black text-emerald-900"
+                                                        style={{ height: `${(cutHeight / h) * 100}%` }}
+                                                    >
+                                                        +{cutHeight}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] font-mono text-slate-400 mt-1">Cây {i+1}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className={`mt-4 w-full px-4 py-2.5 rounded-lg text-xs font-bold text-center ${cur.ok ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                                {cur.msg}
+                            </div>
+                        </div>
+
+                        {/* Code Highlight */}
+                        <div className="content-card bg-slate-900 border-none text-white p-6 shadow-2xl flex flex-col justify-between mb-0 h-full">
+                            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
+                                Thuật toán Chặt Nhị Phân (C++ Code)
+                            </div>
+                            <div className="code-font space-y-1.5 my-auto">
+                                {codeLines.map((l) => (
+                                    <div 
+                                        key={l.num} 
+                                        className={`code-line flex items-center ${cur.line === l.num ? 'active text-indigo-300' : 'text-slate-400'}`}
+                                    >
+                                        <span className="w-8 shrink-0 text-slate-600 text-xs font-mono">{l.num}</span>
+                                        <pre className="inline">{l.code}</pre>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 3: CÀI ĐẶT */
+        const CodeTab = () => {
+            return (
+                <div className="fade-in max-w-5xl mx-auto space-y-6">
+                    <div className="content-card bg-slate-900 border-none p-0 overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center px-8 py-5 bg-slate-800 text-slate-400 border-b border-slate-700">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
+                                <span className="code-font italic text-sm font-bold text-slate-300">wood_cutter_solution.cpp</span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-700 px-3 py-1 rounded text-slate-100">C++17</span>
+                        </div>
+                        <div className="p-8 overflow-x-auto">
+                            <pre className="code-font text-indigo-300 leading-relaxed text-xs">
+{`#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+// Hàm kiểm tra: Nếu đặt lưỡi cắt ở độ cao H, có thu đủ M mét gỗ không?
+bool checkWood(const vector<long long>& trees, long long N, long long M, long long H) {
+    long long totalWood = 0;
+    for (int i = 0; i < N; i++) {
+        if (trees[i] > H) {
+            totalWood += (trees[i] - H); // Thu hoạch phần gỗ thừa trên độ cao H
+        }
+    }
+    return totalWood >= M; // Trả về true nếu thu đủ hoặc thừa gỗ
+}
+
+int main() {
+    // Tối ưu hóa nhập xuất dữ liệu
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+
+    long long N, M;
+    if (!(cin >> N >> M)) return 0;
+
+    vector<long long> trees(N);
+    long long maxH = 0;
+
+    for (int i = 0; i < N; i++) {
+        cin >> trees[i];
+        maxH = max(maxH, trees[i]); // Tìm độ cao lớn nhất của cây
+    }
+
+    // Thiết lập không gian nghiệm [L, R]
+    long long L = 0, R = maxH;
+    long long ans = 0;
+
+    // Bắt đầu thuật toán Chặt nhị phân trên kết quả
+    while (L <= R) {
+        long long mid = L + (R - L) / 2; // Tránh tràn số nguyên khi L + R lớn
+
+        if (checkWood(trees, N, M, mid)) {
+            ans = mid;     // Ghi nhận đáp án tạm thời hợp lệ
+            L = mid + 1;   // Thử nâng độ cao H lên để tìm đáp án LỚN HƠN
+        } else {
+            R = mid - 1;   // Đặt H quá cao nên không đủ M mét gỗ -> Giảm H xuống
+        }
+    }
+
+    // In ra kết quả độ cao tối ưu nhất
+    cout << ans << "\\n";
+
+    return 0;
+}`}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 4: TRẮC NGHIỆM */
+        const QuizTab = () => {
+            const questions = [
+                {
+                    q: "Điều kiện tiên quyết quan trọng nhất để áp dụng Chặt nhị phân trên kết quả là gì?",
+                    o: ["Mảng dữ liệu đầu vào phải được sắp xếp tăng dần", "Hàm kiểm tra (check) phải có tính đơn điệu (Monotonicity)", "Số lượng phần tử trong mảng phải là số mũ của 2", "Kết quả tìm kiếm phải luôn là số nguyên dương"],
+                    a: 1,
+                    e: "Khác với CNP truyền thống cần mảng sắp xếp, CNP trên kết quả chỉ cần hàm check(x) có tính đơn điệu (dạng True...True False...False hoặc ngược lại)."
+                },
+                {
+                    q: "Trong bài toán tìm chiều cao H LỚN NHẤT để thu đủ M mét gỗ, nếu check(mid) == true thì ta cập nhật như thế nào?",
+                    o: ["L = mid + 1 và lưu ans = mid", "R = mid - 1 và lưu ans = mid", "L = mid - 1", "R = mid + 1"],
+                    a: 0,
+                    e: "Vì cần tìm H LỚN NHẤT, khi H = mid đã thỏa mãn, ta lưu đáp án và đẩy biên L = mid + 1 để tìm xem có H nào lớn hơn nữa mà vẫn thỏa mãn không."
+                },
+                {
+                    q: "Tại sao nên tính mid bằng công thức `L + (R - L) / 2` thay vì `(L + R) / 2`?",
+                    o: ["Để thuật toán chạy nhanh hơn", "Tránh bị tràn số nguyên (Overflow) khi L + R vượt quá giới hạn INT_MAX", "Để đáp án mid luôn là số nguyên lẻ", "Không có khác biệt gì giữa 2 công thức"],
+                    a: 1,
+                    e: "Khi L và R là các số nguyên lớn (ví dụ 10^9), phép cộng L + R sẽ vượt quá 2*10^9 (giới hạn của int 32-bit), gây ra lỗi tràn số."
+                },
+                {
+                    q: "Độ phức tạp thời gian tổng quát của thuật toán Chặt nhị phân trên kết quả là gì? (Giả sử hàm check mất O(N))",
+                    o: ["O(N log N)", "O(N * log(Range)) với Range = R - L", "O(N + log N)", "O(N^2)"],
+                    a: 1,
+                    e: "Vòng lặp CNP chạy log(Range) lần, tại mỗi lần lặp ta thực hiện hàm check có độ phức tạp O(N). Do đó tổng độ phức tạp là O(N * log(Range))."
+                },
+                {
+                    q: "Trong bài toán Cắt gỗ, nếu tăng chiều cao H của máy cắt thì tổng lượng gỗ thu được sẽ thay đổi thế nào?",
+                    o: ["Tăng lên", "Giảm đi hoặc giữ nguyên", "Không thay đổi", "Biến thiên ngẫu nhiên"],
+                    a: 1,
+                    e: "Đặt máy cắt càng cao thì phần gỗ thừa nhô lên trên lưỡi cắt càng ít, nên tổng lượng gỗ thu được sẽ giảm đi."
+                },
+                {
+                    q: "Nếu miền nghiệm R - L bằng 10^18 (rất lớn), vòng lặp chặt nhị phân sẽ thực hiện tối đa khoảng bao nhiêu lần?",
+                    o: ["Tối đa 10^18 lần", "Tối đa khoảng 60 lần", "Tối đa 1000 lần", "Tối đa 10^9 lần"],
+                    a: 1,
+                    e: "Vì log2(10^18) ≈ 60, vòng lặp chặt nhị phân chỉ chạy tối đa khoảng 60 bước là thu hẹp được khoảng nghiệm về 1 phần tử."
+                },
+                {
+                    q: "Lỗi phổ biến nhất khiến hàm check trong bài toán CNP bị tính toán sai là gì?",
+                    o: ["Không dùng kiểu dữ liệu long long cho tổng tích lũy", "Dùng vòng lặp for", "Trả về kiểu bool", "Đặt tên biến là mid"],
+                    a: 0,
+                    e: "Tổng tích lũy trong hàm check thường cộng dồn nhiều phần tử lớn nên rất dễ tràn số int. Luôn sử dụng long long cho biến tổng."
+                },
+                {
+                    q: "Trong bài toán tìm giá trị NHỎ NHẤT thỏa mãn check(mid) == true, nếu check(mid) == true ta sẽ làm gì?",
+                    o: ["L = mid + 1", "R = mid - 1 và lưu ans = mid", "Thoát vòng lặp ngay lập tức", "Gán ans = R"],
+                    a: 1,
+                    e: "Vì tìm giá trị NHỎ NHẤT, khi mid thỏa mãn, ta lưu lại đáp án và thử giảm biên phải R = mid - 1 để tìm giá trị nhỏ hơn nữa."
+                },
+                {
+                    q: "Khi chặt nhị phân trên kết quả là SỐ THỰC (floating point), điều kiện dừng vòng lặp thường được viết như thế nào?",
+                    o: ["while (L <= R)", "Thực hiện lặp cố định 60 - 100 lần hoặc kiểm tra while (R - L > EPS)", "while (L == R)", "while (check(mid) == true)"],
+                    a: 1,
+                    e: "Với số thực, L <= R khó bằng nhau do sai số làm tròn. Ta dùng số lần lặp cố định (ví dụ 100 lần) hoặc dừng khi khoảng cách R - L < EPS (ví dụ 1e-7)."
+                },
+                {
+                    q: "Sự khác biệt lớn nhất giữa CNP truyền thống và CNP trên kết quả là gì?",
+                    o: ["CNP kết quả không cần hàm check", "CNP truyền thống tìm kiếm trên mảng đã sắp xếp; CNP kết quả tìm kiếm trên tập các giá trị đáp án khả dĩ", "CNP kết quả luôn có độ phức tạp O(1)", "CNP truyền thống chỉ làm việc với số nguyên"],
+                    a: 1,
+                    e: "CNP truyền thống thao tác trực tiếp trên chỉ số mảng. CNP trên kết quả kiểm tra tính đúng đắn của các nghiệm tiềm năng x trong đoạn [L, R]."
+                }
+            ];
+
+            const [userAns, setUserAns] = useState({});
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleSelect = (qIdx, oIdx) => {
+                if (submitted) return;
+                setUserAns(prev => ({ ...prev, [qIdx]: oIdx }));
+            };
+
+            const isAllAnswered = Object.keys(userAns).length === questions.length;
+            const score = Object.keys(userAns).filter(k => userAns[k] === questions[k].a).length;
+
+            return (
+                <div className="fade-in max-w-4xl mx-auto space-y-6 pb-24">
+                    <div className="content-card bg-indigo-50 border-indigo-200">
+                        <h2 className="text-xl font-black text-indigo-700 uppercase tracking-widest mb-1 flex items-center">
+                            <Icon name="quiz" /> Kiểm Tra Kiến Thức CNP Trên Kết Quả
+                        </h2>
+                        <p className="text-xs text-indigo-600">Trả lời toàn bộ 10 câu hỏi bên dưới để mở khóa nút Nộp Bài và xem giải thích chi tiết.</p>
+                    </div>
+
+                    {questions.map((item, qIdx) => (
+                        <div key={qIdx} className="content-card">
+                            <h3 className="font-bold text-slate-800 text-sm mb-4 flex gap-2">
+                                <span className="text-indigo-600 font-extrabold whitespace-nowrap">Câu {qIdx + 1}:</span>
+                                {item.q}
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {item.o.map((opt, oIdx) => {
+                                    let cls = "p-3 rounded-xl border-2 text-xs font-semibold transition-all text-left cursor-pointer ";
+                                    
+                                    if (userAns[qIdx] === oIdx) {
+                                        cls += submitted 
+                                            ? (oIdx === item.a ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-rose-500 bg-rose-50 text-rose-800")
+                                            : "border-indigo-600 bg-indigo-50 text-indigo-900";
+                                    } else {
+                                        cls += (submitted && oIdx === item.a)
+                                            ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                                            : "border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-300";
+                                    }
+
+                                    return (
+                                        <button key={oIdx} onClick={() => handleSelect(qIdx, oIdx)} className={cls}>
+                                            <span className="font-bold mr-1.5">{String.fromCharCode(65 + oIdx)}.</span> {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {submitted && (
+                                <div className={`mt-4 p-3 rounded-lg text-xs italic ${userAns[qIdx] === item.a ? "bg-emerald-100 text-emerald-900" : "bg-rose-100 text-rose-900"}`}>
+                                    <strong>Giải thích:</strong> {item.e}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    {/* Thanh Nộp Bài Cố Định Ở Đáy */}
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border border-slate-200 flex items-center gap-4 z-50">
+                        {!submitted ? (
+                            <button 
+                                disabled={!isAllAnswered}
+                                onClick={() => setSubmitted(true)}
+                                className="bg-indigo-600 text-white px-8 py-2.5 rounded-full font-black text-xs uppercase tracking-widest hover:bg-indigo-700 disabled:opacity-40 transition-all shadow-lg shadow-indigo-200"
+                            >
+                                {isAllAnswered ? "Nộp Bài Ngay" : `Đã làm ${Object.keys(userAns).length}/10 câu`}
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                <span className="font-extrabold text-sm text-indigo-700">Điểm số: {score} / 10</span>
+                                <button 
+                                    onClick={() => { setUserAns({}); setSubmitted(false); window.scrollTo(0,0); }}
+                                    className="bg-slate-800 text-white px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-slate-900"
+                                >
+                                    Làm Lại
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        /* MAIN APP */
+        const App = () => {
+            const [tab, setTab] = useState('theory');
+
+            return (
+                <div className="min-h-screen bg-slate-50">
+                    <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b sticky top-0 z-[100] border-slate-200">
+                        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100 transform -rotate-3">BS</div>
+                                <div className="flex flex-col">
+                                    <div className="font-black text-lg text-slate-900 tracking-tighter italic uppercase leading-none">BS On Answer <span className="text-indigo-600">Pro</span></div>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Bài Giảng Thuật Toán Chuyên Sâu</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {[
+                                    {id:'theory', n:'Lý thuyết', i:'theory'},
+                                    {id:'sim', n:'Mô phỏng', i:'sim'},
+                                    {id:'code', n:'Cài đặt', i:'code'},
+                                    {id:'quiz', n:'Trắc nghiệm', i:'quiz'}
+                                ].map(t=>(
+                                    <button key={t.id} onClick={()=>setTab(t.id)} className={`tab-btn text-xs ${tab===t.id?'active':''}`}>
+                                        <Icon name={t.i} size={16}/>
+                                        <span className="hidden sm:inline ml-1">{t.n}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+                    <main className="max-w-7xl mx-auto p-6">
+                        <div className="max-w-5xl mx-auto">
+                            {tab === 'theory' && <TheoryTab />}
+                            {tab === 'sim' && <SimulationTab />}
+                            {tab === 'code' && <CodeTab />}
+                            {tab === 'quiz' && <QuizTab />}
+                        </div>
+                    </main>
+                    <footer className="max-w-7xl mx-auto px-6 py-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        &copy; 2026 Interactive Algorithm Learning Lab - Chặt Nhị Phân Trên Kết Quả
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
