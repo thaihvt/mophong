@@ -85,7 +85,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
         const Icon = ({ name, size=20 }) => {
             const icons = {
@@ -163,7 +163,7 @@
                                 <thead>
                                     <tr className="bg-slate-100 border-b border-slate-200">
                                         <th className="p-3 font-bold text-slate-700">Tên Hàm</th>
-                                        <th className="p-3 font-bold text-slate-700">Cú Pháp</th>
+                                        <th className="p-3 font-bold text-slate-700 min-w-[150px]">Cú Pháp</th>
                                         <th className="p-3 font-bold text-slate-700">Mô Tả Chức Năng</th>
                                         <th className="p-3 font-bold text-slate-700">Độ Phức Tạp</th>
                                     </tr>
@@ -191,6 +191,18 @@
                                         <td className="p-3 font-mono font-bold text-blue-600">count()</td>
                                         <td className="p-3 font-mono">s.count(x)</td>
                                         <td className="p-3">Trả về 1 nếu <Latex formula="x" /> có trong set, ngược lại trả về 0.</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(\log N)" /></td>
+                                    </tr>
+                                    <tr className="bg-blue-50/50">
+                                        <td className="p-3 font-mono font-bold text-blue-600">lower_bound()</td>
+                                        <td className="p-3 font-mono">s.lower_bound(x)</td>
+                                        <td className="p-3">Trả về iterator trỏ tới phần tử đầu tiên trong set có giá trị <strong>lớn hơn hoặc bằng</strong> <Latex formula="x" />. Nếu tất cả đều nhỏ hơn <Latex formula="x" />, trả về <code className="bg-slate-100 px-1 rounded">s.end()</code>.</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(\log N)" /></td>
+                                    </tr>
+                                    <tr className="bg-blue-50/50">
+                                        <td className="p-3 font-mono font-bold text-blue-600">upper_bound()</td>
+                                        <td className="p-3 font-mono">s.upper_bound(x)</td>
+                                        <td className="p-3">Trả về iterator trỏ tới phần tử đầu tiên trong set có giá trị <strong>lớn hơn hẳn</strong> (nghiêm ngặt) <Latex formula="x" />. Nếu không có phần tử nào thỏa mãn, trả về <code className="bg-slate-100 px-1 rounded">s.end()</code>.</td>
                                         <td className="p-3 font-mono text-emerald-600"><Latex formula="O(\log N)" /></td>
                                     </tr>
                                     <tr>
@@ -240,11 +252,10 @@
             );
         };
 
-        /* COMPONENT: VẼ CÂY NHỊ PHÂN / RED-BLACK TREE */
+        /* COMPONENT: VẼ CÂY NHỊ PHÂN / ĐỘNG THEO INPUT */
         const BSTView = ({ elements, current }) => {
             if (!elements || elements.length === 0) return <span className="text-slate-400 italic text-sm">Cây đang rỗng {}</span>;
 
-            // Xây dựng cây nhị phân (Binary Search Tree)
             const Node = function(val) { this.val = val; this.left = null; this.right = null; };
             let root = null;
             
@@ -262,12 +273,11 @@
                 }
             });
 
-            // Tính toán toạ độ và màu Red-Black Tree giả lập
             const nodes = [];
             const links = [];
             const traverse = (node, x, y, level) => {
                 if (!node) return;
-                const dx = level === 0 ? 75 : 45;
+                const dx = level === 0 ? 80 : 45 / (level * 0.8 || 1); // Giảm chiều rộng cho các level sâu
                 const dy = 55;
                 if (node.left) {
                     const nx = x - dx;
@@ -282,25 +292,21 @@
                     traverse(node.right, nx, ny, level + 1);
                 }
                 
-                // Quy tắc màu giả lập cho dải 5,2,8,1,9
-                let isRed = false;
-                if (elements.length < 4) {
-                    if (node.val !== 5) isRed = true; 
-                } else {
-                    if (node.val === 1 || node.val === 9) isRed = true;
-                }
+                // Quy tắc màu: Gốc màu tối, các nhánh có thể tự động đổi màu cho sinh động hoặc giữ nguyên
+                let isRed = level > 0 && level % 2 !== 0; 
                 nodes.push({ val: node.val, x, y, isRed });
             };
             
             traverse(root, 150, 25, 0);
 
             return (
-                <svg width="100%" height="200" viewBox="0 0 300 200" className="overflow-visible mt-2">
+                <svg width="100%" height="220" viewBox="0 0 300 220" className="overflow-visible mt-2">
                     {links.map((l, i) => (
                         <line key={'l'+i} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#cbd5e1" strokeWidth="2.5" />
                     ))}
                     {nodes.map((n, i) => {
                         const isActive = n.val === current;
+                        // Nút đang xét sẽ có màu vàng, nếu không áp dụng giả lập màu Đỏ-Đen
                         const fillColor = isActive ? '#f59e0b' : (n.isRed ? '#e11d48' : '#1e293b');
                         const strokeColor = isActive ? '#fef3c7' : (n.isRed ? '#ffe4e6' : '#94a3b8');
                         return (
@@ -309,7 +315,7 @@
                                         stroke={strokeColor} 
                                         strokeWidth="3" 
                                         className="transition-all duration-300 shadow-xl"/>
-                                <text textAnchor="middle" dy=".3em" fill="white" fontSize="14" fontFamily="monospace" fontWeight="bold">{n.val}</text>
+                                <text textAnchor="middle" dy=".3em" fill="white" fontSize="13" fontFamily="monospace" fontWeight="bold">{n.val}</text>
                             </g>
                         );
                     })}
@@ -319,39 +325,90 @@
 
         /* TAB 2: MÔ PHỎNG */
         const SimulationTab = () => {
-            const inputSeq = [5, 2, 8, 2, 5, 1, 9];
+            const [inputStr, setInputStr] = useState("5, 2, 8, 2, 5, 1, 9");
+            const [inputSeq, setInputSeq] = useState([5, 2, 8, 2, 5, 1, 9]);
+            const [steps, setSteps] = useState([]);
             
-            // Đã đổi cur.set thành cur.elements để biểu diễn quá trình chèn thứ tự vào Cây Nhị Phân
-            const steps = [
-                { elements: [], setSize: 0, current: null, action: "Khởi tạo set rỗng: s = {}", line: 1, msg: "Tập hợp rỗng ban đầu. Chuẩn bị gốc (Root)." },
-                { elements: [5], setSize: 1, current: 5, action: "Chèn 5 vào set", line: 4, msg: "Thêm số 5 vào set làm Nút Gốc (Màu Đen)." },
-                { elements: [5, 2], setSize: 2, current: 2, action: "Chèn 2 vào set", line: 4, msg: "2 < 5 -> Đưa sang nhánh TRÁI (Màu Đỏ)." },
-                { elements: [5, 2, 8], setSize: 3, current: 8, action: "Chèn 8 vào set", line: 4, msg: "8 > 5 -> Đưa sang nhánh PHẢI (Màu Đỏ)." },
-                { elements: [5, 2, 8], setSize: 3, current: 2, action: "Thử chèn 2 (Trùng lặp)", line: 4, msg: "Duyệt cây: Số 2 ĐÃ TỒN TẠI! Bỏ qua không chèn." },
-                { elements: [5, 2, 8], setSize: 3, current: 5, action: "Thử chèn 5 (Trùng lặp)", line: 4, msg: "Duyệt cây: Số 5 ĐÃ TỒN TẠI! Bỏ qua không chèn." },
-                { elements: [5, 2, 8, 1], setSize: 4, current: 1, action: "Chèn 1 vào set", line: 4, msg: "1 < 5 -> 1 < 2 -> Nhánh TRÁI của 2. Cây tự động cân bằng (Recoloring)." },
-                { elements: [5, 2, 8, 1, 9], setSize: 5, current: 9, action: "Chèn 9 vào set", line: 4, msg: "9 > 5 -> 9 > 8 -> Nhánh PHẢI của 8. Cấu trúc Red-Black Tree luôn ổn định độ cao." },
-                { elements: [5, 2, 8, 1, 9], setSize: 5, current: null, action: "Duyệt qua set", line: 7, msg: "Duyệt cây Trung Thứ Tự (In-order traversal) cho ra mảng tăng dần: 1 2 5 8 9." }
-            ];
-
             const [stepIdx, setStepIdx] = useState(0);
             const [isPlaying, setIsPlaying] = useState(false);
 
+            // Hàm tạo các bước mô phỏng động dựa trên input dãy số
+            useEffect(() => {
+                let currentElements = [];
+                let newSteps = [{ 
+                    elements: [], 
+                    setSize: 0, 
+                    current: null, 
+                    action: "Khởi tạo set rỗng: s = {}", 
+                    line: 1, 
+                    msg: "Tập hợp rỗng ban đầu. Chuẩn bị gốc (Root)." 
+                }];
+
+                for (let i = 0; i < inputSeq.length; i++) {
+                    const val = inputSeq[i];
+                    if (currentElements.includes(val)) {
+                        newSteps.push({ 
+                            elements: [...currentElements], 
+                            setSize: currentElements.length, 
+                            current: val, 
+                            action: `Thử chèn ${val} (Trùng lặp)`, 
+                            line: 4, 
+                            msg: `Duyệt cây: Số ${val} ĐÃ TỒN TẠI! Bỏ qua không chèn.` 
+                        });
+                    } else {
+                        currentElements.push(val);
+                        newSteps.push({ 
+                            elements: [...currentElements], 
+                            setSize: currentElements.length, 
+                            current: val, 
+                            action: `Chèn ${val} vào set`, 
+                            line: 4, 
+                            msg: currentElements.length === 1 
+                                ? `Thêm số ${val} vào set làm Nút Gốc.` 
+                                : `Chèn ${val} vào cây Nhị phân tìm kiếm. (C++ sẽ dùng Red-Black Tree để tự cân bằng).` 
+                        });
+                    }
+                }
+
+                const sorted = [...currentElements].sort((a,b) => a - b);
+                newSteps.push({ 
+                    elements: [...currentElements], 
+                    setSize: currentElements.length, 
+                    current: null, 
+                    action: "Duyệt qua set", 
+                    line: 7, 
+                    msg: `Duyệt cây Trung Thứ Tự (In-order traversal) cho ra mảng tăng dần: ${sorted.join(' ')}.` 
+                });
+
+                setSteps(newSteps);
+                setStepIdx(0);
+                setIsPlaying(false);
+            }, [inputSeq]);
+
             useEffect(() => {
                 let timer;
-                if (isPlaying && stepIdx < steps.length - 1) {
-                    timer = setTimeout(() => setStepIdx(prev => prev + 1), 1800); // Tăng thời gian để xem cây vẽ rõ hơn
+                if (isPlaying && steps.length > 0 && stepIdx < steps.length - 1) {
+                    timer = setTimeout(() => setStepIdx(prev => prev + 1), 1800);
                 } else {
                     setIsPlaying(false);
                 }
                 return () => clearTimeout(timer);
-            }, [isPlaying, stepIdx]);
+            }, [isPlaying, stepIdx, steps.length]);
 
-            const cur = steps[stepIdx];
+            const handleUpdateInput = () => {
+                const arr = inputStr.split(/[\s,]+/).filter(x => x !== '').map(Number).filter(x => !isNaN(x));
+                if (arr.length > 0) {
+                    setInputSeq(arr);
+                } else {
+                    alert("Vui lòng nhập một dãy số hợp lệ!");
+                }
+            };
+
+            const cur = steps[stepIdx] || { elements: [], setSize: 0, current: null, action: "", line: 0, msg: "" };
 
             const codeLines = [
                 { num: 1, code: "set<int> s;" },
-                { num: 2, code: "vector<int> a = {5, 2, 8, 2, 5, 1, 9};" },
+                { num: 2, code: `vector<int> a = {${inputSeq.join(', ')}};` },
                 { num: 3, code: "for (int x : a) {" },
                 { num: 4, code: "    s.insert(x); // Xây dựng Red-Black Tree" },
                 { num: 5, code: "}" },
@@ -361,6 +418,24 @@
 
             return (
                 <div className="fade-in space-y-6">
+                    {/* Phần Input Dãy Số Động */}
+                    <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Dãy số đầu vào:</span>
+                        <input 
+                            type="text" 
+                            value={inputStr} 
+                            onChange={e => setInputStr(e.target.value)} 
+                            className="flex-1 w-full px-4 py-2 rounded-lg border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Nhập các số cách nhau bởi dấu phẩy hoặc khoảng trắng..."
+                        />
+                        <button 
+                            onClick={handleUpdateInput}
+                            className="sim-btn bg-emerald-600 text-white whitespace-nowrap h-10 w-full md:w-auto px-6 text-sm"
+                        >
+                            Cập Nhật Trạng Thái
+                        </button>
+                    </div>
+
                     {/* Bảng điều khiển mô phỏng */}
                     <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
@@ -376,11 +451,11 @@
                         </div>
                     </div>
 
-                    {/* Dữ liệu đầu vào */}
+                    {/* Dữ liệu đầu vào hiện tại hiển thị ở dạng thẻ */}
                     <div className="p-4 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-around gap-4 text-center">
                         <div>
-                            <span className="text-[10px] font-black uppercase text-slate-400 block">Dãy số đầu vào</span>
-                            <div className="flex gap-1.5 mt-1">
+                            <span className="text-[10px] font-black uppercase text-slate-400 block">Tiến trình đọc mảng</span>
+                            <div className="flex gap-1.5 mt-1 flex-wrap justify-center">
                                 {inputSeq.map((num, idx) => (
                                     <span key={idx} className={`w-8 h-8 flex items-center justify-center rounded-lg font-mono font-bold text-sm border ${stepIdx > 0 && inputSeq[stepIdx-1] === num && idx === stepIdx-1 ? 'bg-amber-500 text-white border-amber-600 scale-110 shadow' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                                         {num}
@@ -400,7 +475,6 @@
 
                     {/* Sắp xếp hình mô phỏng và Code Highlight ngang hàng nhau */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-                        {/* Khung trực quan hóa tập hợp Set */}
                         <div className="content-card flex flex-col items-center justify-between mb-0 h-full">
                             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Mô phỏng Trạng Thái Của std::set (Red-Black Tree)</h3>
                             
@@ -408,12 +482,11 @@
                                 <BSTView elements={cur.elements} current={cur.current} />
                             </div>
 
-                            <div className="mt-4 w-full px-4 py-3 rounded-lg text-xs font-bold text-center bg-blue-50 text-blue-900 border border-blue-200">
+                            <div className="mt-4 w-full px-4 py-3 rounded-lg text-xs font-bold text-center bg-blue-50 text-blue-900 border border-blue-200 min-h-[48px] flex items-center justify-center">
                                 💡 {cur.msg}
                             </div>
                         </div>
 
-                        {/* Code Highlight */}
                         <div className="content-card bg-slate-900 border-none text-white p-6 shadow-2xl flex flex-col justify-between mb-0 h-full">
                             <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
                                 Mã Nguồn C++ Tương Ứng
@@ -481,12 +554,19 @@ int main() {
     } else {
         cout << "Khong tim thay " << val << "\\n";
     }
+    
+    // 5. Hàm lower_bound và upper_bound
+    auto it_low = s.lower_bound(10); // Tìm giá trị >= 10
+    if (it_low != s.end()) cout << "lower_bound(10) = " << *it_low << "\\n";
+    
+    auto it_up = s.upper_bound(10);  // Tìm giá trị > 10
+    if (it_up != s.end()) cout << "upper_bound(10) = " << *it_up << "\\n";
 
-    // 5. Xóa phần tử
+    // 6. Xóa phần tử
     s.erase(5);
     cout << "Kich thuoc set sau khi xoa 5: " << s.size() << "\\n";
 
-    // 6. Ví dụ multiset (Cho phép trùng lặp)
+    // 7. Ví dụ multiset (Cho phép trùng lặp)
     multiset<int> ms;
     ms.insert(7);
     ms.insert(7);
@@ -542,10 +622,10 @@ int main() {
                     e: "Khi truyền trực tiếp giá trị x vào ms.erase(x), multiset sẽ xóa TOÀN BỘ các phần tử có giá trị x. Để chỉ xóa 1 phần tử, ta dùng ms.erase(ms.find(x))."
                 },
                 {
-                    q: "Cấu trúc dữ liệu nào dưới đây giúp tìm kiếm/chèn/xóa với độ phức tạp trung bình O(1)?",
-                    o: ["std::set", "std::multiset", "std::unordered_set", "std::vector"],
+                    q: "Hàm s.lower_bound(x) trong std::set có tác dụng gì?",
+                    o: ["Trả về iterator trỏ tới phần tử nhỏ nhất trong set", "Trả về iterator trỏ tới phần tử lớn hơn hẳn x", "Trả về iterator trỏ tới phần tử đầu tiên lớn hơn hoặc bằng x", "Trả về iterator trỏ tới phần tử nhỏ hơn hoặc bằng x"],
                     a: 2,
-                    e: "std::unordered_set sử dụng Bảng Băm (Hash Table) nên đạt độ phức tạp O(1) cho các thao tác cơ bản (tuy nhiên không sắp xếp phần tử)."
+                    e: "Hàm lower_bound(x) trả về con trỏ (iterator) chỉ tới phần tử đầu tiên >= x. Nếu cần lấy phần tử > x thì ta dùng upper_bound(x)."
                 },
                 {
                     q: "Nếu hàm s.find(x) KHÔNG tìm thấy giá trị x trong set s, nó sẽ trả về giá trị gì?",
