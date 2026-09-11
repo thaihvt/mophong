@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cấu Trúc Dữ Liệu Stack Trong C++ - Bài Giảng Tương Tác</title>
+    
+    <!-- Framework & Thư viện -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-size: 16px;
+        }
+
+        .code-font { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 13.5px; 
+            font-variant-ligatures: none;
+        }
+        
+        .content-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 28px;
+            margin-bottom: 24px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            font-weight: 700;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+            background: #eff6ff;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .code-line {
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s, border-left 0.2s;
+        }
+        .code-line.active {
+            background-color: rgba(37, 99, 235, 0.25) !important;
+            border-left: 4px solid #3b82f6;
+            font-weight: 700;
+        }
+
+        .sim-btn {
+            height: 32px;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 0 14px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+        .sim-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size=20 }) => {
+            const icons = {
+                theory: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" />,
+                sim: <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2-2v10a2 2 0 0 0 2 2h7 M16 19h6 M19 16l3 3-3 3" />,
+                code: <React.Fragment><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></React.Fragment>,
+                quiz: <React.Fragment><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></React.Fragment>
+            };
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-2">
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        const Latex = ({ formula, block = false }) => {
+            const ref = useRef(null);
+            useEffect(() => { 
+                if (ref.current && window.katex) {
+                    window.katex.render(formula, ref.current, { displayMode: block, throwOnError: false }); 
+                }
+            }, [formula, block]);
+            return <span ref={ref}></span>;
+        };
+
+        /* TAB 1: LÝ THUYẾT */
+        const TheoryTab = () => {
+            return (
+                <div className="fade-in space-y-6">
+                    <div className="content-card">
+                        <h2 className="text-2xl font-bold text-blue-700 mb-4 border-b border-blue-100 pb-2 italic flex items-center">
+                            <span className="w-2 h-8 bg-blue-600 rounded mr-3"></span>
+                            1. Tổng Quan Về Cấu Trúc Dữ Liệu Stack (Ngăn xếp)
+                        </h2>
+                        <div className="space-y-4 text-justify text-base leading-relaxed text-slate-700">
+                            <p>
+                                Trong C++ STL, <strong>std::stack</strong> là một cấu trúc dữ liệu hoạt động theo nguyên lý <strong>LIFO</strong> (Last In, First Out - Vào sau, Ra trước). Bạn có thể tưởng tượng nó giống như một chồng đĩa: chiếc đĩa nào được đặt vào sau cùng sẽ nằm ở trên cùng, và khi lấy đĩa ra, bạn cũng phải lấy chiếc đĩa ở trên cùng ra trước tiên.
+                            </p>
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex flex-col md:flex-row gap-4">
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-blue-900 mb-2 text-lg">Đặc điểm chính</h3>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li>Thêm phần tử (push) luôn diễn ra ở đỉnh stack.</li>
+                                        <li>Xóa phần tử (pop) luôn diễn ra ở đỉnh stack.</li>
+                                        <li>Chỉ có thể truy cập phần tử ở đỉnh (top), không thể truy cập các phần tử bên dưới nếu không xóa các phần tử ở trên.</li>
+                                        <li><strong>Không</strong> hỗ trợ iterator (con trỏ duyệt).</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-blue-700 mb-4 italic flex items-center">
+                            <span className="w-2 h-6 bg-blue-500 rounded mr-3"></span>
+                            2. Cú Pháp Khai Báo
+                        </h2>
+                        <div className="space-y-4 text-base leading-relaxed text-slate-700">
+                            <p>Cần khai báo thư viện <code className="bg-slate-100 text-blue-600 px-2 py-0.5 rounded font-mono text-sm">#include &lt;stack&gt;</code> trước khi sử dụng:</p>
+                            <div className="p-4 bg-slate-900 text-slate-100 rounded-xl font-mono text-sm space-y-2">
+                                <div className="text-slate-400">// Khai báo một stack chứa số nguyên</div>
+                                <div>stack&lt;<span className="text-emerald-400">int</span>&gt; st;</div>
+                                <div className="text-slate-400 mt-2">// Khai báo stack chứa chuỗi</div>
+                                <div>stack&lt;<span className="text-emerald-400">string</span>&gt; str_st;</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-slate-800 mb-4 italic flex items-center">
+                            <span className="w-2 h-6 bg-slate-600 rounded mr-3"></span>
+                            3. Các Hàm Thường Dùng & Độ Phức Tạp
+                        </h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-100 border-b border-slate-200">
+                                        <th className="p-3 font-bold text-slate-700">Tên Hàm</th>
+                                        <th className="p-3 font-bold text-slate-700 min-w-[150px]">Cú Pháp</th>
+                                        <th className="p-3 font-bold text-slate-700">Mô Tả Chức Năng</th>
+                                        <th className="p-3 font-bold text-slate-700">Độ Phức Tạp</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700">
+                                    <tr>
+                                        <td className="p-3 font-mono font-bold text-blue-600">push()</td>
+                                        <td className="p-3 font-mono">st.push(x)</td>
+                                        <td className="p-3">Thêm phần tử <Latex formula="x" /> vào đỉnh của ngăn xếp.</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(1)" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-3 font-mono font-bold text-blue-600">pop()</td>
+                                        <td className="p-3 font-mono">st.pop()</td>
+                                        <td className="p-3">Xóa phần tử ở <strong>đỉnh</strong> của ngăn xếp. Lưu ý: hàm này không trả về giá trị của phần tử vừa xóa.</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(1)" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-3 font-mono font-bold text-blue-600">top()</td>
+                                        <td className="p-3 font-mono">st.top()</td>
+                                        <td className="p-3">Trả về giá trị của phần tử đang nằm ở đỉnh ngăn xếp (không xóa nó).</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(1)" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-3 font-mono font-bold text-blue-600">size()</td>
+                                        <td className="p-3 font-mono">st.size()</td>
+                                        <td className="p-3">Trả về số lượng phần tử hiện có trong ngăn xếp.</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(1)" /></td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-3 font-mono font-bold text-blue-600">empty()</td>
+                                        <td className="p-3 font-mono">st.empty()</td>
+                                        <td className="p-3">Kiểm tra stack có rỗng hay không. Trả về <code className="font-mono bg-slate-100 px-1 rounded">true</code> nếu rỗng, ngược lại <code className="font-mono bg-slate-100 px-1 rounded">false</code>.</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(1)" /></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="mt-4 p-4 bg-rose-50 rounded-lg text-rose-800 text-sm border border-rose-200">
+                            <strong>Lưu ý cực kỳ quan trọng:</strong> Tuyệt đối không gọi <code>st.top()</code> hoặc <code>st.pop()</code> khi stack đang rỗng (<code>st.empty() == true</code>), điều này sẽ dẫn đến lỗi tràn bộ nhớ (Segmentation Fault) làm sập chương trình.
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* COMPONENT: VẼ STACK */
+        const StackView = ({ elements, actionType }) => {
+            const maxHeight = 220;
+            const itemHeight = 35;
+            const containerWidth = 140;
+
+            return (
+                <svg width="100%" height={maxHeight + 20} viewBox={`0 0 200 ${maxHeight + 20}`} className="overflow-visible mt-2">
+                    {/* Vẽ cái ly (container) */}
+                    <path 
+                        d={`M 30 10 L 30 ${maxHeight} L ${30 + containerWidth} ${maxHeight} L ${30 + containerWidth} 10`} 
+                        fill="none" 
+                        stroke="#94a3b8" 
+                        strokeWidth="6" 
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                    
+                    {elements.map((val, idx) => {
+                        const isTop = idx === elements.length - 1;
+                        let fillColor = '#1e293b'; // Màu mặc định
+                        if (isTop) {
+                            if (actionType === 'push') fillColor = '#10b981'; // Xanh lá khi chèn
+                            else if (actionType === 'top' || actionType === 'pop') fillColor = '#ef4444'; // Đỏ khi lấy/xóa
+                            else fillColor = '#3b82f6'; // Xanh dương bình thường ở đỉnh
+                        }
+                        
+                        // Tính toán tọa độ y (đáy stack lên dần)
+                        const y = maxHeight - (idx + 1) * itemHeight - 2;
+
+                        return (
+                            <g key={'item'+idx} className="transition-all duration-300">
+                                <rect 
+                                    x="35" 
+                                    y={y} 
+                                    width={containerWidth - 10} 
+                                    height={itemHeight - 4} 
+                                    rx="6" 
+                                    fill={fillColor} 
+                                    className="transition-all duration-500 shadow-sm"
+                                />
+                                <text 
+                                    x={30 + containerWidth / 2} 
+                                    y={y + itemHeight/2 + 1} 
+                                    textAnchor="middle" 
+                                    alignmentBaseline="middle" 
+                                    fill="white" 
+                                    fontSize="15" 
+                                    fontFamily="monospace" 
+                                    fontWeight="bold"
+                                >
+                                    {val}
+                                </text>
+                            </g>
+                        );
+                    })}
+                </svg>
+            );
+        };
+
+        /* TAB 2: MÔ PHỎNG */
+        const SimulationTab = () => {
+            const [inputStr, setInputStr] = useState("10, 20, 30");
+            const [inputSeq, setInputSeq] = useState([10, 20, 30]);
+            const [steps, setSteps] = useState([]);
+            
+            const [stepIdx, setStepIdx] = useState(0);
+            const [isPlaying, setIsPlaying] = useState(false);
+
+            // Hàm tạo các bước mô phỏng động
+            useEffect(() => {
+                let currentStack = [];
+                let newSteps = [{ 
+                    elements: [], 
+                    current: null, 
+                    action: "Khởi tạo stack rỗng", 
+                    line: 1, 
+                    type: "init",
+                    msg: "Stack st chưa có phần tử nào. st.empty() == true" 
+                }];
+
+                // Quá trình Push
+                for (let i = 0; i < inputSeq.length; i++) {
+                    const val = inputSeq[i];
+                    currentStack.push(val);
+                    newSteps.push({ 
+                        elements: [...currentStack], 
+                        current: val, 
+                        action: `st.push(${val})`, 
+                        line: 3, 
+                        type: "push",
+                        msg: `Thêm ${val} vào ĐỈNH của ngăn xếp.` 
+                    });
+                }
+
+                // Quá trình Pop
+                let poppingStack = [...currentStack];
+                while(poppingStack.length > 0) {
+                    newSteps.push({ 
+                        elements: [...poppingStack], 
+                        current: null, 
+                        action: `Kiểm tra vòng lặp while (!st.empty())`, 
+                        line: 5, 
+                        type: "check",
+                        msg: `Stack có ${poppingStack.length} phần tử. Tiếp tục vòng lặp.` 
+                    });
+
+                    let topVal = poppingStack[poppingStack.length - 1];
+                    newSteps.push({ 
+                        elements: [...poppingStack], 
+                        current: topVal, 
+                        action: `Lấy đỉnh: st.top() == ${topVal}`, 
+                        line: 6, 
+                        type: "top",
+                        msg: `Đọc giá trị ở đỉnh stack là ${topVal} (Nhưng chưa xóa).` 
+                    });
+
+                    poppingStack.pop();
+                    newSteps.push({ 
+                        elements: [...poppingStack], 
+                        current: null, 
+                        action: `Xóa đỉnh: st.pop()`, 
+                        line: 7, 
+                        type: "pop",
+                        msg: `Đã xóa phần tử ${topVal} khỏi ngăn xếp.` 
+                    });
+                }
+
+                newSteps.push({ 
+                    elements: [], 
+                    current: null, 
+                    action: "Kết thúc", 
+                    line: 5, 
+                    type: "end",
+                    msg: "Stack đã rỗng (st.empty() == true). Vòng lặp kết thúc." 
+                });
+
+                setSteps(newSteps);
+                setStepIdx(0);
+                setIsPlaying(false);
+            }, [inputSeq]);
+
+            useEffect(() => {
+                let timer;
+                if (isPlaying && steps.length > 0 && stepIdx < steps.length - 1) {
+                    timer = setTimeout(() => setStepIdx(prev => prev + 1), 1500);
+                } else {
+                    setIsPlaying(false);
+                }
+                return () => clearTimeout(timer);
+            }, [isPlaying, stepIdx, steps.length]);
+
+            const handleUpdateInput = () => {
+                const arr = inputStr.split(/[\s,]+/).filter(x => x !== '').map(Number).filter(x => !isNaN(x));
+                if (arr.length > 0 && arr.length <= 6) {
+                    setInputSeq(arr);
+                } else if (arr.length > 6) {
+                    alert("Vui lòng nhập tối đa 6 phần tử để hiển thị tốt nhất!");
+                } else {
+                    alert("Vui lòng nhập một dãy số hợp lệ!");
+                }
+            };
+
+            const cur = steps[stepIdx] || { elements: [], current: null, action: "", line: 0, msg: "", type: "init" };
+
+            const codeLines = [
+                { num: 1, code: "stack<int> st;" },
+                { num: 2, code: `vector<int> a = {${inputSeq.join(', ')}};` },
+                { num: 3, code: "for (int x : a) st.push(x);" },
+                { num: 4, code: "// Lấy ra và in từng phần tử" },
+                { num: 5, code: "while (!st.empty()) {" },
+                { num: 6, code: "    cout << st.top() << ' ';" },
+                { num: 7, code: "    st.pop();" },
+                { num: 8, code: "}" }
+            ];
+
+            return (
+                <div className="fade-in space-y-6">
+                    <div className="flex flex-col md:flex-row items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Dãy số đẩy vào:</span>
+                        <input 
+                            type="text" 
+                            value={inputStr} 
+                            onChange={e => setInputStr(e.target.value)} 
+                            className="flex-1 w-full px-4 py-2 rounded-lg border border-slate-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Tối đa 6 số, cách nhau bằng dấu phẩy..."
+                        />
+                        <button 
+                            onClick={handleUpdateInput}
+                            className="sim-btn bg-emerald-600 text-white whitespace-nowrap h-10 w-full md:w-auto px-6 text-sm"
+                        >
+                            Cập Nhật Trạng Thái
+                        </button>
+                    </div>
+
+                    <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setStepIdx(0)} className="sim-btn bg-rose-600 text-white">Reset</button>
+                            <button disabled={stepIdx === 0} onClick={() => setStepIdx(prev => prev - 1)} className="sim-btn bg-slate-700 disabled:opacity-30">◄ Trước</button>
+                            <button onClick={() => setIsPlaying(!isPlaying)} className={`sim-btn ${isPlaying ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                                {isPlaying ? 'Tạm Dừng' : 'Tự Động Chạy'}
+                            </button>
+                            <button disabled={stepIdx === steps.length - 1} onClick={() => setStepIdx(prev => prev + 1)} className="sim-btn bg-slate-700 disabled:opacity-30">Sau ►</button>
+                        </div>
+                        <div className="font-mono text-xs text-blue-300">
+                            Bước: <span className="text-white font-bold text-sm">{stepIdx + 1}</span> / {steps.length}
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-around gap-4 text-center">
+                        <div>
+                            <span className="text-[10px] font-black uppercase text-slate-400 block">Kích thước stack (size)</span>
+                            <div className="font-mono text-sm font-bold text-emerald-600 mt-1">{cur.elements.length} phần tử</div>
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-black uppercase text-slate-400 block">Hành Động Hiện Tại</span>
+                            <div className="font-mono text-sm font-bold text-blue-700 mt-1">{cur.action}</div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                        <div className="content-card flex flex-col items-center justify-between mb-0 h-full">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Trạng Thái Của std::stack (LIFO)</h3>
+                            
+                            <div className="w-full my-auto flex flex-col items-center justify-center min-h-[220px] bg-slate-50 border-2 border-dashed border-blue-300 rounded-2xl p-4">
+                                <StackView elements={cur.elements} actionType={cur.type} />
+                            </div>
+
+                            <div className="mt-4 w-full px-4 py-3 rounded-lg text-xs font-bold text-center bg-blue-50 text-blue-900 border border-blue-200 min-h-[48px] flex items-center justify-center">
+                                💡 {cur.msg}
+                            </div>
+                        </div>
+
+                        <div className="content-card bg-slate-900 border-none text-white p-6 shadow-2xl flex flex-col justify-between mb-0 h-full">
+                            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2">
+                                Mã Nguồn C++ Tương Ứng
+                            </div>
+                            <div className="code-font space-y-2 my-auto">
+                                {codeLines.map((l) => (
+                                    <div 
+                                        key={l.num} 
+                                        className={`code-line flex items-center ${cur.line === l.num ? 'active text-blue-300' : 'text-slate-400'}`}
+                                    >
+                                        <span className="w-8 shrink-0 text-slate-600 text-xs font-mono">{l.num}</span>
+                                        <pre className="inline">{l.code}</pre>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 3: CÀI ĐẶT */
+        const CodeTab = () => {
+            return (
+                <div className="fade-in max-w-5xl mx-auto space-y-6">
+                    <div className="content-card bg-slate-900 border-none p-0 overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center px-8 py-5 bg-slate-800 text-slate-400 border-b border-slate-700">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
+                                <span className="code-font italic text-sm font-bold text-slate-300">std_stack_demo.cpp</span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-700 px-3 py-1 rounded text-slate-100">C++</span>
+                        </div>
+                        <div className="p-8 overflow-x-auto">
+                            <pre className="code-font text-blue-300 leading-relaxed text-xs">
+{`#include <iostream>
+#include <stack>
+#include <string>
+
+using namespace std;
+
+int main() {
+    // 1. Khai báo std::stack
+    stack<string> st;
+
+    // 2. Thêm phần tử vào stack (push)
+    st.push("Sach Toan");
+    st.push("Sach Ly");
+    st.push("Sach Hoa");
+
+    // In kích thước
+    cout << "So luong sach trong chong: " << st.size() << "\\n"; // Output: 3
+
+    // 3. Truy cập phần tử trên cùng (top)
+    cout << "Quyen sach o tren cung: " << st.top() << "\\n"; // Output: Sach Hoa
+
+    // 4. Lấy phần tử ra khỏi stack
+    // Lưu ý: pop() chỉ xóa, không trả về giá trị. 
+    // Muốn dùng giá trị phải gọi top() trước khi pop().
+    st.pop(); 
+    
+    cout << "Sau khi lay ra, sach o tren cung: " << st.top() << "\\n"; // Output: Sach Ly
+
+    // 5. Duyệt và xóa toàn bộ phần tử trong stack
+    cout << "\\nLay het sach ra theo thu tu:\\n";
+    while (!st.empty()) {
+        cout << "- " << st.top() << "\\n"; // Lấy giá trị ở đỉnh
+        st.pop();                          // Xóa khỏi đỉnh
+    }
+
+    if (st.empty()) {
+        cout << "\\nChong sach da rong!\\n";
+    }
+
+    return 0;
+}`}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 4: TRẮC NGHIỆM */
+        const QuizTab = () => {
+            const questions = [
+                {
+                    q: "Đặc điểm cốt lõi của cấu trúc dữ liệu Stack (Ngăn xếp) là gì?",
+                    o: ["FIFO - Vào trước ra trước", "LIFO - Vào sau ra trước", "Truy cập ngẫu nhiên bất kỳ phần tử nào", "Sắp xếp tăng dần tự động"],
+                    a: 1,
+                    e: "Stack hoạt động theo nguyên lý LIFO (Last In, First Out). Phần tử được thêm vào cuối cùng sẽ là phần tử được lấy ra đầu tiên."
+                },
+                {
+                    q: "Thư viện nào cần được #include để sử dụng stack trong C++?",
+                    o: ["<vector>", "<queue>", "<stack>", "<set>"],
+                    a: 2,
+                    e: "Cần dùng lệnh `#include <stack>` để có thể khai báo và sử dụng std::stack."
+                },
+                {
+                    q: "Hàm nào dùng để thêm một phần tử vào ngăn xếp?",
+                    o: ["insert()", "push_back()", "add()", "push()"],
+                    a: 3,
+                    e: "Trong std::stack, hàm `push(x)` được sử dụng để đẩy giá trị x vào đỉnh của ngăn xếp."
+                },
+                {
+                    q: "Hàm st.pop() trong C++ thực hiện chức năng gì?",
+                    o: ["Xóa phần tử ở đáy stack", "Xóa phần tử ở đỉnh stack", "Trả về giá trị phần tử ở đỉnh và xóa nó", "Xóa toàn bộ stack"],
+                    a: 1,
+                    e: "Hàm `pop()` chỉ làm nhiệm vụ xóa phần tử ở đỉnh stack. Chú ý: Hàm này KHÔNG trả về giá trị của phần tử vừa bị xóa."
+                },
+                {
+                    q: "Làm thế nào để lấy giá trị của phần tử ở đỉnh stack mà KHÔNG xóa nó?",
+                    o: ["st.top()", "st.front()", "st.peek()", "st.pop()"],
+                    a: 0,
+                    e: "Hàm `st.top()` trả về tham chiếu đến phần tử nằm trên cùng của ngăn xếp."
+                },
+                {
+                    q: "Độ phức tạp thời gian của các thao tác cơ bản trên stack (push, pop, top) là bao nhiêu?",
+                    o: ["O(N)", "O(log N)", "O(1)", "O(N log N)"],
+                    a: 2,
+                    e: "Các thao tác thêm, xóa và xem phần tử ở đỉnh stack đều có độ phức tạp thời gian cực nhanh là O(1)."
+                },
+                {
+                    q: "Stack có hỗ trợ duyệt qua các phần tử bằng con trỏ (iterator) hoặc chỉ số mảng (st[i]) không?",
+                    o: ["Có, dùng vòng lặp for(int i=0; i<st.size(); i++)", "Có, dùng iterator như set/vector", "Không hỗ trợ"],
+                    a: 2,
+                    e: "Stack là cấu trúc dữ liệu khép kín. Bạn không thể duyệt qua nó bằng iterator hay index. Cách duy nhất để lấy các phần tử bên dưới là phải `pop()` dần các phần tử ở trên."
+                },
+                {
+                    q: "Kiểu container (cấu trúc bên dưới) mặc định mà std::stack sử dụng trong C++ là gì?",
+                    o: ["std::vector", "std::list", "std::deque", "Mảng động tự viết"],
+                    a: 2,
+                    e: "Mặc định, std::stack sử dụng `std::deque` làm container lưu trữ dữ liệu thực tế bên dưới."
+                },
+                {
+                    q: "Điều gì xảy ra nếu bạn gọi st.pop() hoặc st.top() khi ngăn xếp đang rỗng (st.empty() == true)?",
+                    o: ["Trả về NULL hoặc 0", "Hàm tự động bỏ qua không làm gì", "Chương trình văng lỗi (Segmentation Fault / Undefined Behavior)", "Không có vấn đề gì"],
+                    a: 2,
+                    e: "C++ không kiểm tra lỗi rỗng bên trong hàm top() hay pop() để tối ưu tốc độ. Nếu gọi khi stack rỗng, chương trình sẽ sinh lỗi Undefined Behavior và thường bị crash."
+                },
+                {
+                    q: "Kết quả in ra của đoạn code sau là gì?\nstack<int> st;\nst.push(1); st.push(2);\nst.pop();\nst.push(3);\ncout << st.top();",
+                    o: ["1", "2", "3", "0"],
+                    a: 2,
+                    e: "Push 1, Push 2 (stack: 1, 2). Pop xóa 2 (stack: 1). Push 3 (stack: 1, 3). Đỉnh lúc này là 3. st.top() in ra 3."
+                }
+            ];
+
+            const [userAns, setUserAns] = useState({});
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleSelect = (qIdx, oIdx) => {
+                if (submitted) return;
+                setUserAns(prev => ({ ...prev, [qIdx]: oIdx }));
+            };
+
+            const isAllAnswered = Object.keys(userAns).length === questions.length;
+            const score = Object.keys(userAns).filter(k => userAns[k] === questions[k].a).length;
+
+            return (
+                <div className="fade-in max-w-4xl mx-auto space-y-6 pb-24">
+                    <div className="content-card bg-blue-50 border-blue-200">
+                        <h2 className="text-xl font-black text-blue-700 uppercase tracking-widest mb-1 flex items-center">
+                            <Icon name="quiz" /> Bài Tập Trắc Nghiệm Củng Cố Stack
+                        </h2>
+                        <p className="text-sm text-blue-800">Trả lời toàn bộ 10 câu hỏi bên dưới để mở khóa nút Nộp Bài và xem đáp án giải thích chi tiết.</p>
+                    </div>
+
+                    {questions.map((item, qIdx) => (
+                        <div key={qIdx} className="content-card">
+                            <h3 className="font-bold text-slate-800 text-base mb-4 flex gap-2">
+                                <span className="text-blue-600 font-extrabold whitespace-nowrap">Câu {qIdx + 1}:</span>
+                                <span className="whitespace-pre-line">{item.q}</span>
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {item.o.map((opt, oIdx) => {
+                                    let cls = "p-3 rounded-xl border-2 text-sm font-semibold transition-all text-left cursor-pointer ";
+                                    
+                                    if (userAns[qIdx] === oIdx) {
+                                        cls += submitted 
+                                            ? (oIdx === item.a ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-rose-500 bg-rose-50 text-rose-800")
+                                            : "border-blue-600 bg-blue-50 text-blue-900";
+                                    } else {
+                                        cls += (submitted && oIdx === item.a)
+                                            ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                                            : "border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-300";
+                                    }
+
+                                    return (
+                                        <button key={oIdx} onClick={() => handleSelect(qIdx, oIdx)} className={cls}>
+                                            <span className="font-bold mr-1.5">{String.fromCharCode(65 + oIdx)}.</span> {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {submitted && (
+                                <div className={`mt-4 p-3 rounded-lg text-sm italic ${userAns[qIdx] === item.a ? "bg-emerald-100 text-emerald-900" : "bg-rose-100 text-rose-900"}`}>
+                                    <strong>Giải thích:</strong> {item.e}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border border-slate-200 flex items-center gap-4 z-50">
+                        {!submitted ? (
+                            <button 
+                                disabled={!isAllAnswered}
+                                onClick={() => setSubmitted(true)}
+                                className="bg-blue-600 text-white px-8 py-2.5 rounded-full font-black text-xs uppercase tracking-widest hover:bg-blue-700 disabled:opacity-40 transition-all shadow-lg shadow-blue-200"
+                            >
+                                {isAllAnswered ? "Nộp Bài Ngay" : `Đã làm ${Object.keys(userAns).length}/10 câu`}
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                <span className="font-extrabold text-sm text-blue-700">Điểm số: {score} / 10</span>
+                                <button 
+                                    onClick={() => { setUserAns({}); setSubmitted(false); window.scrollTo(0,0); }}
+                                    className="bg-slate-800 text-white px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-slate-900"
+                                >
+                                    Làm Lại
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        /* MAIN APP */
+        const App = () => {
+            const [tab, setTab] = useState('theory');
+
+            return (
+                <div className="min-h-screen bg-slate-50">
+                    <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b sticky top-0 z-[100] border-slate-200">
+                        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100 transform -rotate-3">STK</div>
+                                <div className="flex flex-col">
+                                    <div className="font-black text-lg text-slate-900 tracking-tighter italic uppercase leading-none">C++ STL <span className="text-indigo-600">std::stack</span></div>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Bài Giảng Cấu Trúc Dữ Liệu</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {[
+                                    {id:'theory', n:'Lý thuyết', i:'theory'},
+                                    {id:'sim', n:'Mô phỏng', i:'sim'},
+                                    {id:'code', n:'Cài đặt', i:'code'},
+                                    {id:'quiz', n:'Luyện tập', i:'quiz'}
+                                ].map(t=>(
+                                    <button key={t.id} onClick={()=>setTab(t.id)} className={`tab-btn text-xs ${tab===t.id?'active':''}`}>
+                                        <Icon name={t.i} size={16}/>
+                                        <span className="hidden sm:inline ml-1">{t.n}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+                    <main className="max-w-7xl mx-auto p-6">
+                        <div className="max-w-5xl mx-auto">
+                            {tab === 'theory' && <TheoryTab />}
+                            {tab === 'sim' && <SimulationTab />}
+                            {tab === 'code' && <CodeTab />}
+                            {tab === 'quiz' && <QuizTab />}
+                        </div>
+                    </main>
+                    <footer className="max-w-7xl mx-auto px-6 py-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        &copy; 2026 Interactive Algorithm Learning Lab - Cấu Trúc Dữ Liệu std::stack
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
