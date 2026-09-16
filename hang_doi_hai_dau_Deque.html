@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Cấu Trúc Dữ Liệu Deque Trong C++ (std::deque)</title>
+    
+    <!-- Framework & Thư viện -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-size: 16px;
+        }
+
+        .code-font { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 13.5px; 
+            font-variant-ligatures: none;
+        }
+        
+        .content-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 28px;
+            margin-bottom: 24px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            font-weight: 700;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+            background: #eff6ff;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .code-line {
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s, border-left 0.2s;
+        }
+        .code-line.active {
+            background-color: rgba(37, 99, 235, 0.25) !important;
+            border-left: 4px solid #3b82f6;
+            font-weight: 700;
+        }
+
+        .sim-btn {
+            height: 36px;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 0 16px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+        .sim-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
+        .sim-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .element-node {
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size=20 }) => {
+            const icons = {
+                theory: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" />,
+                sim: <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2-2v10a2 2 0 0 0 2 2h7 M16 19h6 M19 16l3 3-3 3" />,
+                code: <React.Fragment><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></React.Fragment>,
+                quiz: <React.Fragment><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></React.Fragment>
+            };
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-2">
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        const Latex = ({ formula, block = false }) => {
+            const ref = useRef(null);
+            useEffect(() => { 
+                if (ref.current && window.katex) {
+                    window.katex.render(formula, ref.current, { displayMode: block, throwOnError: false }); 
+                }
+            }, [formula, block]);
+            return <span ref={ref}></span>;
+        };
+
+        /* TAB 1: LÝ THUYẾT */
+        const TheoryTab = () => {
+            const memberFunctions = [
+                { name: "size()", desc: "Trả về số lượng phần tử hiện tại trong deque.", comp: "O(1)" },
+                { name: "empty()", desc: "Trả về true nếu deque rỗng, ngược lại trả về false.", comp: "O(1)" },
+                { name: "operator []", desc: "Truy cập trực tiếp phần tử theo chỉ số (không kiểm tra giới hạn).", comp: "O(1)" },
+                { name: "at()", desc: "Truy cập phần tử theo chỉ số (có kiểm tra giới hạn an toàn).", comp: "O(1)" },
+                { name: "push_back(x)", desc: "Đẩy phần tử x vào CỦI/ĐUÔI của deque.", comp: "O(1)" },
+                { name: "push_front(x)", desc: "Đẩy phần tử x vào ĐẦU của deque.", comp: "O(1)" },
+                { name: "pop_back()", desc: "Loại bỏ phần tử ở CỦI/ĐUÔI của deque.", comp: "O(1)" },
+                { name: "pop_front()", desc: "Loại bỏ phần tử ở ĐẦU của deque.", comp: "O(1)" },
+                { name: "front()", desc: "Trả về giá trị/tham chiếu đến phần tử ĐẦU TIÊN.", comp: "O(1)" },
+                { name: "back()", desc: "Trả về giá trị/tham chiếu đến phần tử CỦI CÙNG.", comp: "O(1)" },
+                { name: "insert(it, x)", desc: "Chèn phần tử x vào trước vị trí con trỏ iterator.", comp: "O(N)" },
+                { name: "erase(it1, it2)", desc: "Xóa phần tử từ vị trí it1 đến trước it2.", comp: "O(N)" },
+                { name: "clear()", desc: "Xóa sạch toàn bộ các phần tử trong deque.", comp: "O(N)" },
+                { name: "swap(dq2)", desc: "Hoán đổi toàn bộ nội dung của 2 deque.", comp: "O(1)" }
+            ];
+
+            return (
+                <div className="fade-in space-y-6">
+                    <div className="content-card">
+                        <h2 className="text-2xl font-bold text-blue-700 mb-4 border-b border-blue-100 pb-2 flex items-center">
+                            <span className="w-2 h-8 bg-blue-600 rounded mr-3"></span>
+                            1. Tổng Quan Về Deque Trong C++
+                        </h2>
+                        <div className="space-y-4 text-justify text-base leading-relaxed text-slate-700">
+                            <p>
+                                <strong>Deque</strong> (viết tắt của <em>Double-Ended Queue</em> - Hàng đợi hai đầu) là một cấu trúc dữ liệu container tuần tự trong C++ Standard Template Library (STL). Khác với <code className="bg-slate-100 text-blue-700 px-2 py-0.5 rounded font-mono text-sm">std::queue</code> (chỉ push ở cuối và pop ở đầu) hay <code className="bg-slate-100 text-blue-700 px-2 py-0.5 rounded font-mono text-sm">std::vector</code> (chỉ tối ưu ở cuối), <strong>std::deque</strong> cho phép **thêm và xóa phần tử hiệu quả ở CẢ HAI ĐẦU** với độ phức tạp thời gian hằng số <Latex formula="O(1)" />.
+                            </p>
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                                <h3 className="font-bold text-blue-900 mb-2 text-base">Cú pháp khai báo:</h3>
+                                <pre className="code-font bg-slate-900 text-blue-300 p-3 rounded-lg overflow-x-auto">
+{`#include <deque>
+using namespace std;
+
+deque<Tên_Kiểu_Dữ_Liệu> dq; // Khai báo deque rỗng`}
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-blue-700 mb-4 flex items-center">
+                            <span className="w-2 h-6 bg-blue-500 rounded mr-3"></span>
+                            2. Các Hàm Thành Viên Thường Dùng (Bảng Độ Phức Tạp)
+                        </h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-100 border-b border-slate-200">
+                                        <th className="p-3 font-bold text-slate-700">Hàm thành viên</th>
+                                        <th className="p-3 font-bold text-slate-700">Mô tả chức năng</th>
+                                        <th className="p-3 font-bold text-slate-700">Độ phức tạp</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700">
+                                    {memberFunctions.map((fn, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50">
+                                            <td className="p-3 font-mono font-bold text-blue-600">{fn.name}</td>
+                                            <td className="p-3">{fn.desc}</td>
+                                            <td className="p-3 font-mono font-bold text-emerald-600"><Latex formula={fn.comp} /></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                            <span className="w-2 h-6 bg-slate-600 rounded mr-3"></span>
+                            3. Một Số Lưu Ý Quan Trọng Khi Dùng Deque
+                        </h2>
+                        <ul className="list-disc pl-6 space-y-2 text-sm text-slate-700 leading-relaxed">
+                            <li><strong>Cấu trúc bộ nhớ:</strong> Không giống như <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">std::vector</code> (cấp phát 1 vùng nhớ liên tục), <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">std::deque</code> quản lý chuỗi các khối bộ nhớ kích thước cố định (chunks/buffers). Do đó, các phần tử trong deque <strong>không nằm liên tục nhau tuyệt đối</strong> trong bộ nhớ RAM.</li>
+                            <li><strong>Truy cập ngẫu nhiên:</strong> Vẫn hỗ trợ truy cập phần tử trong thời gian <Latex formula="O(1)" /> thông qua <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">operator[]</code> hoặc <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">at()</code>, nhưng tốc độ thực tế chậm hơn vector một chút do phải tính toán địa chỉ khối.</li>
+                            <li><strong>Hiệu năng chèn/xóa ở 2 đầu:</strong> Tốc độ <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">push_front()</code> của deque vượt trội hoàn toàn so với vector (vector phải dời toàn bộ phần tử sang phải với <Latex formula="O(N)" />).</li>
+                        </ul>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 2: MÔ PHỎNG MỘT DEQUE TƯƠNG TÁC */
+        const SimulationTab = () => {
+            const [deque, setDeque] = useState([10, 25, 42]);
+            const [inputVal, setInputVal] = useState("99");
+            const [logs, setLogs] = useState([]);
+            const [activeLine, setActiveLine] = useState(1);
+            const [highlightIdx, setHighlightIdx] = useState(null);
+
+            const codeSnippet = [
+                { num: 1, code: "// Khởi tạo deque<int> dq" },
+                { num: 2, code: "dq.push_front(val); // Thêm vào đầu" },
+                { num: 3, code: "dq.push_back(val);  // Thêm vào cuối" },
+                { num: 4, code: "dq.pop_front();     // Xóa ở đầu" },
+                { num: 5, code: "dq.pop_back();      // Xóa ở cuối" },
+                { num: 6, code: "dq.clear();         // Xóa sạch" }
+            ];
+
+            const addLog = (msg) => {
+                setLogs(prev => [msg, ...prev.slice(0, 7)]);
+            };
+
+            const handlePushFront = () => {
+                if (!inputVal) return;
+                const val = parseInt(inputVal, 10);
+                if (isNaN(val)) return;
+                setDeque(prev => [val, ...prev]);
+                setActiveLine(2);
+                setHighlightIdx(0);
+                addLog(`push_front(${val}): Thêm ${val} vào ĐẦU deque.`);
+            };
+
+            const handlePushBack = () => {
+                if (!inputVal) return;
+                const val = parseInt(inputVal, 10);
+                if (isNaN(val)) return;
+                setDeque(prev => [...prev, val]);
+                setActiveLine(3);
+                setHighlightIdx(deque.length);
+                addLog(`push_back(${val}): Thêm ${val} vào CUỐI deque.`);
+            };
+
+            const handlePopFront = () => {
+                if (deque.length === 0) return;
+                const removed = deque[0];
+                setDeque(prev => prev.slice(1));
+                setActiveLine(4);
+                setHighlightIdx(null);
+                addLog(`pop_front(): Đã xóa phần tử ĐẦU TIÊN (${removed}).`);
+            };
+
+            const handlePopBack = () => {
+                if (deque.length === 0) return;
+                const removed = deque[deque.length - 1];
+                setDeque(prev => prev.slice(0, -1));
+                setActiveLine(5);
+                setHighlightIdx(null);
+                addLog(`pop_back(): Đã xóa phần tử CỦI CÙNG (${removed}).`);
+            };
+
+            const handleClear = () => {
+                setDeque([]);
+                setActiveLine(6);
+                setHighlightIdx(null);
+                addLog(`clear(): Đã xóa sạch toàn bộ phần tử.`);
+            };
+
+            return (
+                <div className="fade-in space-y-6">
+                    {/* Thanh điều khiển nhập liệu */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Giá trị x:</span>
+                            <input 
+                                type="number" 
+                                value={inputVal}
+                                onChange={e => setInputVal(e.target.value)}
+                                className="w-24 px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button onClick={handlePushFront} className="sim-btn bg-blue-600 text-white">Push Front</button>
+                            <button onClick={handlePushBack} className="sim-btn bg-indigo-600 text-white">Push Back</button>
+                            <button disabled={deque.length === 0} onClick={handlePopFront} className="sim-btn bg-amber-600 text-white">Pop Front</button>
+                            <button disabled={deque.length === 0} onClick={handlePopBack} className="sim-btn bg-rose-600 text-white">Pop Back</button>
+                            <button disabled={deque.length === 0} onClick={handleClear} className="sim-btn bg-slate-700 text-white">Clear</button>
+                        </div>
+                    </div>
+
+                    {/* Khung mô phỏng Đồ thị Deque & Mã C++ */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                        {/* Đồ họa Trực quan Deque */}
+                        <div className="content-card flex flex-col justify-between mb-0 h-full">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex justify-between items-center">
+                                <span>Mô Phỏng Đồ Họa Deque</span>
+                                <span className="font-mono text-blue-600 font-bold">size() = {deque.length}</span>
+                            </h3>
+
+                            <div className="my-auto py-8 px-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center min-h-[220px] overflow-x-auto relative">
+                                {deque.length === 0 ? (
+                                    <div className="text-slate-400 font-bold italic text-sm">Deque hiện đang rỗng (empty)</div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-[10px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded">Front ➔</div>
+                                        {deque.map((val, idx) => (
+                                            <div 
+                                                key={idx}
+                                                className={`element-node flex flex-col items-center justify-center w-14 h-16 rounded-xl border-2 font-mono font-bold shadow-md ${
+                                                    highlightIdx === idx 
+                                                        ? 'bg-amber-400 border-amber-600 text-slate-900 scale-110' 
+                                                        : 'bg-white border-blue-500 text-blue-900'
+                                                }`}
+                                            >
+                                                <span className="text-base">{val}</span>
+                                                <span className="text-[9px] text-slate-400 font-normal">[{idx}]</span>
+                                            </div>
+                                        ))}
+                                        <div className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-100 px-2 py-1 rounded">➔ Back</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Nhật ký thao tác */}
+                            <div className="mt-4 bg-slate-900 text-slate-300 p-3 rounded-xl text-xs font-mono min-h-[100px]">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nhật ký hoạt động:</div>
+                                {logs.length === 0 ? (
+                                    <div className="text-slate-600 italic">Chưa có thao tác nào.</div>
+                                ) : (
+                                    logs.slice(0, 3).map((l, i) => <div key={i} className="text-emerald-400">➔ {l}</div>)
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Code Highlight tương ứng */}
+                        <div className="content-card bg-slate-900 border-none text-white p-6 shadow-2xl flex flex-col justify-between mb-0 h-full">
+                            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2 flex justify-between">
+                                <span>Mã C++ Tương Ứng</span>
+                                <span className="text-blue-400 font-mono">std::deque</span>
+                            </div>
+                            <div className="code-font space-y-2 my-auto">
+                                {codeSnippet.map((l) => (
+                                    <div 
+                                        key={l.num} 
+                                        className={`code-line flex items-center ${activeLine === l.num ? 'active text-blue-300' : 'text-slate-400'}`}
+                                    >
+                                        <span className="w-8 shrink-0 text-slate-600 text-xs font-mono">{l.num}</span>
+                                        <pre className="inline">{l.code}</pre>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 3: CÀI ĐẶT CODE C++ */
+        const CodeTab = () => {
+            return (
+                <div className="fade-in max-w-5xl mx-auto space-y-6">
+                    <div className="content-card bg-slate-900 border-none p-0 overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center px-8 py-5 bg-slate-800 text-slate-400 border-b border-slate-700">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
+                                <span className="code-font italic text-sm font-bold text-slate-300">deque_operations.cpp</span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-700 px-3 py-1 rounded text-slate-100">C++ STL</span>
+                        </div>
+                        <div className="p-8 overflow-x-auto">
+                            <pre className="code-font text-blue-300 leading-relaxed text-xs">
+{`#include <iostream>
+#include <deque>
+
+using namespace std;
+
+int main() {
+    // 1. Khai báo deque chứa các số nguyên
+    deque<int> dq;
+
+    // 2. Thêm phần tử vào ĐẦU và CỦI
+    dq.push_back(10);   // Deque: [10]
+    dq.push_back(20);   // Deque: [10, 20]
+    dq.push_front(5);   // Deque: [5, 10, 20]
+    dq.push_front(1);   // Deque: [1, 5, 10, 20]
+
+    // 3. Truy cập phần tử ở ĐẦU và CỦI
+    cout << "Phan tu dau (front): " << dq.front() << "\\n"; // In 1
+    cout << "Phan tu cuoi (back): " << dq.back() << "\\n";   // In 20
+
+    // 4. Duyệt deque bằng chỉ số (Index Access) - O(1)
+    cout << "Cac phan tu trong deque: ";
+    for (size_t i = 0; i < dq.size(); i++) {
+        cout << dq[i] << " "; // Hoac dung dq.at(i)
+    }
+    cout << "\\n";
+
+    // 5. Xóa phần tử ở ĐẦU và CỦI
+    dq.pop_front(); // Xóa 1 -> Deque con: [5, 10, 20]
+    dq.pop_back();  // Xóa 20 -> Deque con: [5, 10]
+
+    // 6. Chèn và xóa ở giữa bằng Iterator - O(N)
+    dq.insert(dq.begin() + 1, 99); // Chèn 99 vào chỉ số 1 -> [5, 99, 10]
+    dq.erase(dq.begin());          // Xóa phần tử ở vị trí 0 -> [99, 10]
+
+    // 7. Kích thước và xóa sạch deque
+    cout << "Kich thuoc hien tai: " << dq.size() << "\\n";
+    dq.clear(); // Xóa toàn bộ
+    cout << "Trang thai rong: " << (dq.empty() ? "Yes" : "No") << "\\n";
+
+    return 0;
+}`}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 4: TRẮC NGHIỆM */
+        const QuizTab = () => {
+            const questions = [
+                {
+                    q: "Deque là viết tắt của thuật ngữ tiếng Anh nào?",
+                    o: ["Double-Ended Queue", "Double-Element Queue", "Direct-Entry Queue", "Dual-Engine Queue"],
+                    a: 0,
+                    e: "Deque là viết tắt của Double-Ended Queue (Hàng đợi hai đầu), cho phép thao tác ở cả 2 đầu."
+                },
+                {
+                    q: "Độ phức tạp thời gian khi thực hiện push_front() hoặc push_back() trên std::deque là bao nhiêu?",
+                    o: ["O(N)", "O(1)", "O(log N)", "O(N^2)"],
+                    a: 1,
+                    e: "Tương tự như std::queue, việc chèn thêm phần tử ở cả 2 đầu của std::deque chỉ tốn thời gian hằng số O(1)."
+                },
+                {
+                    q: "Phương thức nào dùng để truy cập phần tử đầu tiên của deque mà KHÔNG xóa nó?",
+                    o: ["pop_front()", "top()", "front()", "first()"],
+                    a: 2,
+                    e: "Hàm front() trả về phần tử ở đầu. Trong khi pop_front() loại bỏ phần tử ở đầu mà không trả về giá trị."
+                },
+                {
+                    q: "Khác biệt cốt lõi về tổ chức bộ nhớ giữa std::vector và std::deque là gì?",
+                    o: ["Vector lưu liên tục trên 1 vùng nhớ, Deque lưu dưới dạng các khối bộ nhớ phân đoạn.", "Deque lưu liên tục, Vector phân đoạn.", "Cả hai đều lưu trên cùng 1 vùng nhớ liên tục.", "Deque dùng danh sách liên kết đơn."],
+                    a: 0,
+                    e: "Vector quản lý 1 mảng động liên tục. Deque quản lý danh sách các khối (chunks) bộ nhớ cố định."
+                },
+                {
+                    q: "Độ phức tạp của toán tử truy cập ngẫu nhiên operator[] trên std::deque là bao nhiêu?",
+                    o: ["O(N)", "O(1)", "O(log N)", "Không hỗ trợ"],
+                    a: 1,
+                    e: "Mặc dù vùng nhớ không liên tục tuyệt đối, std::deque vẫn hỗ trợ truy cập ngẫu nhiên qua chỉ số với độ phức tạp O(1)."
+                },
+                {
+                    q: "Hàm nào dùng để loại bỏ phần tử ở CUỐI cùng của deque?",
+                    o: ["pop_front()", "pop_back()", "erase_back()", "remove_last()"],
+                    a: 1,
+                    e: "Hàm pop_back() thực hiện xóa phần tử cuối cùng của deque."
+                },
+                {
+                    q: "Phương thức insert() hoặc erase() ở GIỮA deque có độ phức tạp thời gian là bao nhiêu?",
+                    o: ["O(1)", "O(N)", "O(log N)", "O(N log N)"],
+                    a: 1,
+                    e: "Thao tác chèn hoặc xóa phần tử ở vị trí bất kỳ ở giữa đòi hỏi phải di chuyển các phần tử xung quanh, nên tốn O(N)."
+                },
+                {
+                    q: "Hàm clear() thực hiện công việc gì trên std::deque?",
+                    o: ["Giải phóng bộ nhớ và khôi phục cài đặt gốc.", "Xóa toàn bộ các phần tử làm cho size() = 0.", "Xóa phần tử đầu tiên.", "Xóa phần tử cuối cùng."],
+                    a: 1,
+                    e: "Hàm clear() xóa toàn bộ phần tử chứa trong deque khiến size() trở về 0."
+                },
+                {
+                    q: "Khi nào nên ưu tiên dùng std::deque thay vì std::vector?",
+                    o: ["Khi chỉ cần thêm/xóa ở cuối mảng.", "Khi cần thêm/xóa phần tử liên tục ở CẢ HAI ĐẦU (đầu và cuối).", "Khi cần tiết kiệm bộ nhớ tối đa.", "Khi không cần truy cập theo chỉ số."],
+                    a: 1,
+                    e: "Deque vượt trội hơn Vector khi bài toán yêu cầu chèn/xóa phần tử liên tục ở cả đầu lẫn cuối mảng."
+                },
+                {
+                    q: "Hàm swap() hoán đổi 2 deque có độ phức tạp thời gian là bao nhiêu trong C++ STL?",
+                    o: ["O(N)", "O(1)", "O(N^2)", "O(log N)"],
+                    a: 1,
+                    e: "Hàm swap() của std::deque chỉ hoán đổi con trỏ quản lý bộ nhớ nội bộ, do đó có độ phức tạp O(1)."
+                }
+            ];
+
+            const [userAns, setUserAns] = useState({});
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleSelect = (qIdx, oIdx) => {
+                if (submitted) return;
+                setUserAns(prev => ({ ...prev, [qIdx]: oIdx }));
+            };
+
+            const isAllAnswered = Object.keys(userAns).length === questions.length;
+            const score = Object.keys(userAns).filter(k => userAns[k] === questions[k].a).length;
+
+            return (
+                <div className="fade-in max-w-4xl mx-auto space-y-6 pb-24">
+                    <div className="content-card bg-blue-50 border-blue-200">
+                        <h2 className="text-xl font-black text-blue-700 uppercase tracking-widest mb-1 flex items-center">
+                            <Icon name="quiz" /> Trắc Nghiệm Ôn Tập Kiến Thức C++ Deque
+                        </h2>
+                        <p className="text-sm text-blue-800">Chọn đáp án cho tất cả 10 câu hỏi để mở khóa nút Kiểm Tra và xem giải thích chi tiết.</p>
+                    </div>
+
+                    {questions.map((item, qIdx) => (
+                        <div key={qIdx} className="content-card">
+                            <h3 className="font-bold text-slate-800 text-base mb-4 flex gap-2">
+                                <span className="text-blue-600 font-extrabold whitespace-nowrap">Câu {qIdx + 1}:</span>
+                                <span>{item.q}</span>
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {item.o.map((opt, oIdx) => {
+                                    let cls = "p-3 rounded-xl border-2 text-sm font-semibold transition-all text-left cursor-pointer ";
+                                    
+                                    if (userAns[qIdx] === oIdx) {
+                                        cls += submitted 
+                                            ? (oIdx === item.a ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-rose-500 bg-rose-50 text-rose-800")
+                                            : "border-blue-600 bg-blue-50 text-blue-900";
+                                    } else {
+                                        cls += (submitted && oIdx === item.a)
+                                            ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                                            : "border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-300";
+                                    }
+
+                                    return (
+                                        <button key={oIdx} onClick={() => handleSelect(qIdx, oIdx)} className={cls}>
+                                            <span className="font-bold mr-1.5">{String.fromCharCode(65 + oIdx)}.</span> {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {submitted && (
+                                <div className={`mt-4 p-3 rounded-lg text-sm italic ${userAns[qIdx] === item.a ? "bg-emerald-100 text-emerald-900" : "bg-rose-100 text-rose-900"}`}>
+                                    <strong>Giải thích:</strong> {item.e}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border border-slate-200 flex items-center gap-4 z-50">
+                        {!submitted ? (
+                            <button 
+                                disabled={!isAllAnswered}
+                                onClick={() => setSubmitted(true)}
+                                className="bg-blue-600 text-white px-8 py-2.5 rounded-full font-black text-xs uppercase tracking-widest hover:bg-blue-700 disabled:opacity-40 transition-all shadow-lg shadow-blue-200"
+                            >
+                                {isAllAnswered ? "Kiểm Tra Đáp Án" : `Đã chọn ${Object.keys(userAns).length}/10 câu`}
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                <span className="font-extrabold text-sm text-blue-700">Điểm số: {score} / 10</span>
+                                <button 
+                                    onClick={() => { setUserAns({}); setSubmitted(false); window.scrollTo(0,0); }}
+                                    className="bg-slate-800 text-white px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-slate-900"
+                                >
+                                    Làm Lại
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        /* MAIN APP */
+        const App = () => {
+            const [tab, setTab] = useState('theory');
+
+            return (
+                <div className="min-h-screen bg-slate-50">
+                    <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b sticky top-0 z-[100] border-slate-200">
+                        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-100 transform -rotate-3">DQ</div>
+                                <div className="flex flex-col">
+                                    <div className="font-black text-lg text-slate-900 tracking-tighter italic uppercase leading-none">C++ <span className="text-blue-600">std::deque</span></div>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Double-Ended Queue Visualizer</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {[
+                                    {id:'theory', n:'Lý thuyết', i:'theory'},
+                                    {id:'sim', n:'Mô phỏng', i:'sim'},
+                                    {id:'code', n:'Cài đặt C++', i:'code'},
+                                    {id:'quiz', n:'Luyện tập', i:'quiz'}
+                                ].map(t=>(
+                                    <button key={t.id} onClick={()=>setTab(t.id)} className={`tab-btn text-xs ${tab===t.id?'active':''}`}>
+                                        <Icon name={t.i} size={16}/>
+                                        <span className="hidden sm:inline ml-1">{t.n}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+                    <main className="max-w-7xl mx-auto p-6">
+                        <div className="max-w-5xl mx-auto">
+                            {tab === 'theory' && <TheoryTab />}
+                            {tab === 'sim' && <SimulationTab />}
+                            {tab === 'code' && <CodeTab />}
+                            {tab === 'quiz' && <QuizTab />}
+                        </div>
+                    </main>
+                    <footer className="max-w-7xl mx-auto px-6 py-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        &copy; 2026 Interactive Algorithm Learning Lab - C++ Deque Visualizer
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
