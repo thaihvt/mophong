@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Thuật Toán BFS Tìm Đường Đi Ngắn Nhất - C++ Queue</title>
+    
+    <!-- Framework & Thư viện -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-size: 16px;
+        }
+
+        .code-font { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 13.5px; 
+            font-variant-ligatures: none;
+        }
+        
+        .content-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 28px;
+            margin-bottom: 24px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            font-weight: 700;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+            background: #eff6ff;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .code-line {
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s, border-left 0.2s;
+        }
+        .code-line.active {
+            background-color: rgba(37, 99, 235, 0.25) !important;
+            border-left: 4px solid #3b82f6;
+            font-weight: 700;
+        }
+
+        .sim-btn {
+            height: 32px;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 0 14px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+        .sim-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+        
+        .node-pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size=20 }) => {
+            const icons = {
+                theory: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" />,
+                sim: <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2-2v10a2 2 0 0 0 2 2h7 M16 19h6 M19 16l3 3-3 3" />,
+                code: <React.Fragment><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></React.Fragment>,
+                quiz: <React.Fragment><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></React.Fragment>
+            };
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-2">
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        const Latex = ({ formula, block = false }) => {
+            const ref = useRef(null);
+            useEffect(() => { 
+                if (ref.current && window.katex) {
+                    window.katex.render(formula, ref.current, { displayMode: block, throwOnError: false }); 
+                }
+            }, [formula, block]);
+            return <span ref={ref}></span>;
+        };
+
+        /* TAB 1: LÝ THUYẾT */
+        const TheoryTab = () => {
+            return (
+                <div className="fade-in space-y-6">
+                    <div className="content-card">
+                        <h2 className="text-2xl font-bold text-blue-700 mb-4 border-b border-blue-100 pb-2 italic flex items-center">
+                            <span className="w-2 h-8 bg-blue-600 rounded mr-3"></span>
+                            1. Tổng Quan Thuật Toán BFS (Breadth-First Search)
+                        </h2>
+                        <div className="space-y-4 text-justify text-base leading-relaxed text-slate-700">
+                            <p>
+                                <strong>BFS (Tìm kiếm theo chiều rộng)</strong> là thuật toán duyệt đồ thị ưu tiên thăm các đỉnh ở gần đỉnh xuất phát <Latex formula="S" /> trước, sau đó mới loang rộng dần ra các đỉnh ở xa hơn. Thuật toán này sử dụng cấu trúc dữ liệu <strong>Queue (Hàng đợi)</strong> với nguyên lý <strong>FIFO</strong> để quản lý thứ tự duyệt.
+                            </p>
+                            <div className="p-4 bg-blue-50 rounded-xl border border-blue-200 flex flex-col md:flex-row gap-4">
+                                <div className="flex-1">
+                                    <h3 className="font-bold text-blue-900 mb-2 text-lg">Ứng dụng cốt lõi</h3>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li>Tìm đường đi ngắn nhất (ít con đường nhất) giữa 2 thành phố trên đồ thị không trọng số.</li>
+                                        <li>Tìm các thành phố/đỉnh thuộc cùng một thành phần liên thông.</li>
+                                        <li>Bài toán loang (Loang trên lưới ô vuông, tìm lối thoát khỏi mê cung).</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-blue-700 mb-4 italic flex items-center">
+                            <span className="w-2 h-6 bg-blue-500 rounded mr-3"></span>
+                            2. Vai Trò Của Queue Trong BFS
+                        </h2>
+                        <div className="space-y-4 text-base leading-relaxed text-slate-700">
+                            <p>Nhờ cơ chế <strong>Vào trước - Ra trước</strong> của Queue:</p>
+                            <ul className="list-disc pl-6 space-y-2 text-sm">
+                                <li>Tất cả các thành phố cách <Latex formula="S" /> đúng <strong>1 bước</strong> được đẩy vào Queue trước.</li>
+                                <li>Khi duyệt xong toàn bộ các thành phố 1 bước, ta mới lấy các thành phố cách <Latex formula="S" /> <strong>2 bước</strong> ra khỏi Queue để duyệt tiếp.</li>
+                                <li>Do đó, lần đầu tiên chạm tới thành phố đích <Latex formula="T" />, độ dài đường đi chắc chắn là <strong>ngắn nhất</strong>.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-slate-800 mb-4 italic flex items-center">
+                            <span className="w-2 h-6 bg-slate-600 rounded mr-3"></span>
+                            3. Đồ Phức Tạp Thuật Toán
+                        </h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-100 border-b border-slate-200">
+                                        <th className="p-3 font-bold text-slate-700">Thành phần</th>
+                                        <th className="p-3 font-bold text-slate-700">Độ phức tạp</th>
+                                        <th className="p-3 font-bold text-slate-700">Mô tả</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700">
+                                    <tr>
+                                        <td className="p-3 font-mono font-bold text-blue-600">Thời gian (Time)</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(V + E)" /></td>
+                                        <td className="p-3">Mỗi đỉnh <Latex formula="V" /> và mỗi cạnh <Latex formula="E" /> được xét tối đa một vài lần.</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="p-3 font-mono font-bold text-blue-600">Bộ nhớ (Space)</td>
+                                        <td className="p-3 font-mono text-emerald-600"><Latex formula="O(V)" /></td>
+                                        <td className="p-3">Dùng để lưu danh sách kề, mảng khoảng cách <Latex formula="dist[]" /> và hàng đợi <Latex formula="queue" />.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* GRAPH PRESETS */
+        const PRESETS = {
+            sample: {
+                name: "Ví Dụ Đề Bài (5 đỉnh, S=1, T=4)",
+                nodes: [
+                    { id: 1, x: 80, y: 140 },
+                    { id: 2, x: 200, y: 70 },
+                    { id: 3, x: 340, y: 70 },
+                    { id: 4, x: 200, y: 220 },
+                    { id: 5, x: 340, y: 220 }
+                ],
+                edges: [[1,2], [2,3], [3,5], [5,4], [2,4]],
+                start: 1,
+                target: 4
+            },
+            line: {
+                name: "Đồ Thị Hình Cây (6 đỉnh, S=1, T=6)",
+                nodes: [
+                    { id: 1, x: 70, y: 150 },
+                    { id: 2, x: 170, y: 80 },
+                    { id: 3, x: 170, y: 220 },
+                    { id: 4, x: 290, y: 50 },
+                    { id: 5, x: 290, y: 130 },
+                    { id: 6, x: 290, y: 220 }
+                ],
+                edges: [[1,2], [1,3], [2,4], [2,5], [3,6]],
+                start: 1,
+                target: 6
+            },
+            grid: {
+                name: "Đồ Thị Lưới Nối Tắt (6 đỉnh, S=1, T=6)",
+                nodes: [
+                    { id: 1, x: 80, y: 80 },
+                    { id: 2, x: 230, y: 80 },
+                    { id: 3, x: 380, y: 80 },
+                    { id: 4, x: 80, y: 220 },
+                    { id: 5, x: 230, y: 220 },
+                    { id: 6, x: 380, y: 220 }
+                ],
+                edges: [[1,2], [2,3], [1,4], [4,5], [5,6], [3,6], [2,6]],
+                start: 1,
+                target: 6
+            }
+        };
+
+        /* HELPER FOR GENERATING BFS STEPS */
+        function generateBFSExecution(graph) {
+            const { nodes, edges, start, target } = graph;
+            const adj = {};
+            nodes.forEach(n => adj[n.id] = []);
+            edges.forEach(([u, v]) => {
+                adj[u].push(v);
+                adj[v].push(u);
+            });
+
+            const steps = [];
+            const dist = {};
+            const parent = {};
+            nodes.forEach(n => { dist[n.id] = -1; parent[n.id] = null; });
+
+            const queue = [];
+
+            // Step 0: Initial
+            dist[start] = 0;
+            queue.push(start);
+
+            steps.push({
+                queue: [...queue],
+                dist: { ...dist },
+                currNode: null,
+                currNeighbor: null,
+                action: `Khởi tạo: dist[${start}] = 0, push ${start} vào Queue`,
+                line: 1,
+                msg: `Bắt đầu tại thành phố xuất phát S = ${start}. Đặt dist[${start}] = 0 và đẩy vào Queue.`,
+                nodeStates: { [start]: 'in_queue' },
+                activeEdge: null,
+                path: []
+            });
+
+            let found = false;
+            let finalPath = [];
+
+            while (queue.length > 0 && !found) {
+                const u = queue.shift();
+
+                steps.push({
+                    queue: [...queue],
+                    dist: { ...dist },
+                    currNode: u,
+                    currNeighbor: null,
+                    action: `Pop thành phố ${u} từ Queue`,
+                    line: 3,
+                    msg: `Lấy thành phố u = ${u} ở đầu Queue ra để chuẩn bị loang sang các thành phố kề với nó.`,
+                    nodeStates: getNodeStates(nodes, dist, queue, u, null, target, false, []),
+                    activeEdge: null,
+                    path: []
+                });
+
+                if (u === target) {
+                    found = true;
+                    let curr = target;
+                    while (curr !== null) {
+                        finalPath.unshift(curr);
+                        curr = parent[curr];
+                    }
+
+                    steps.push({
+                        queue: [...queue],
+                        dist: { ...dist },
+                        currNode: u,
+                        currNeighbor: null,
+                        action: `Đã tới đích T = ${target}! Dừng thuật toán.`,
+                        line: 4,
+                        msg: `Thành phố u = ${u} chính là đích T = ${target}! Độ dài đường đi ngắn nhất = ${dist[target]}.`,
+                        nodeStates: getNodeStates(nodes, dist, queue, u, null, target, true, finalPath),
+                        activeEdge: null,
+                        path: [...finalPath]
+                    });
+                    break;
+                }
+
+                for (let v of adj[u]) {
+                    const edgeKey = u < v ? `${u}-${v}` : `${v}-${u}`;
+                    if (dist[v] === -1) {
+                        dist[v] = dist[u] + 1;
+                        parent[v] = u;
+                        queue.push(v);
+
+                        steps.push({
+                            queue: [...queue],
+                            dist: { ...dist },
+                            currNode: u,
+                            currNeighbor: v,
+                            action: `Cập nhật dist[${v}] = ${dist[v]}, push ${v} vào Queue`,
+                            line: 7,
+                            msg: `Thành phố ${v} chưa duyệt (dist[${v}] = -1). Cập nhật dist[${v}] = dist[${u}] + 1 = ${dist[v]} và đẩy ${v} vào Queue.`,
+                            nodeStates: getNodeStates(nodes, dist, queue, u, v, target, false, []),
+                            activeEdge: edgeKey,
+                            path: []
+                        });
+                    } else {
+                        steps.push({
+                            queue: [...queue],
+                            dist: { ...dist },
+                            currNode: u,
+                            currNeighbor: v,
+                            action: `Thành phố ${v} đã được viếng thăm từ trước`,
+                            line: 6,
+                            msg: `Thành phố ${v} đã có dist[${v}] = ${dist[v]} (đã nằm trong Queue hoặc đã duyệt xong). Bỏ qua.`,
+                            nodeStates: getNodeStates(nodes, dist, queue, u, v, target, false, []),
+                            activeEdge: edgeKey,
+                            path: []
+                        });
+                    }
+                }
+            }
+
+            if (!found) {
+                steps.push({
+                    queue: [],
+                    dist: { ...dist },
+                    currNode: null,
+                    currNeighbor: null,
+                    action: `Không tìm thấy đường đi tới đích ${target}`,
+                    line: 9,
+                    msg: `Queue rỗng nhưng không tìm thấy đường đi tới thành phố ${target}. Kết quả: -1.`,
+                    nodeStates: getNodeStates(nodes, dist, [], null, null, target, false, []),
+                    activeEdge: null,
+                    path: []
+                });
+            }
+
+            return steps;
+        }
+
+        function getNodeStates(nodes, dist, queue, currNode, currNeighbor, target, found, finalPath) {
+            const states = {};
+            nodes.forEach(n => {
+                const id = n.id;
+                if (found && finalPath.includes(id)) {
+                    states[id] = 'path';
+                } else if (id === currNode) {
+                    states[id] = 'current';
+                } else if (id === currNeighbor) {
+                    states[id] = 'neighbor';
+                } else if (queue.includes(id)) {
+                    states[id] = 'in_queue';
+                } else if (dist[id] !== -1) {
+                    states[id] = 'visited';
+                } else {
+                    states[id] = 'unvisited';
+                }
+            });
+            return states;
+        }
+
+        /* TAB 2: MÔ PHỎNG */
+        const SimulationTab = () => {
+            const [presetKey, setPresetKey] = useState('sample');
+            const [graph, setGraph] = useState(PRESETS.sample);
+            const [steps, setSteps] = useState([]);
+            const [stepIdx, setStepIdx] = useState(0);
+            const [isPlaying, setIsPlaying] = useState(false);
+
+            useEffect(() => {
+                const currentGraph = PRESETS[presetKey];
+                setGraph(currentGraph);
+                const generatedSteps = generateBFSExecution(currentGraph);
+                setSteps(generatedSteps);
+                setStepIdx(0);
+                setIsPlaying(false);
+            }, [presetKey]);
+
+            useEffect(() => {
+                let timer;
+                if (isPlaying && steps.length > 0 && stepIdx < steps.length - 1) {
+                    timer = setTimeout(() => setStepIdx(prev => prev + 1), 1400);
+                } else {
+                    setIsPlaying(false);
+                }
+                return () => clearTimeout(timer);
+            }, [isPlaying, stepIdx, steps.length]);
+
+            const cur = steps[stepIdx] || { 
+                queue: [], dist: {}, currNode: null, action: "", line: 1, msg: "", nodeStates: {}, activeEdge: null, path: [] 
+            };
+
+            const codeLines = [
+                { num: 1, code: "dist[s] = 0; q.push(s);" },
+                { num: 2, code: "while (!q.empty()) {" },
+                { num: 3, code: "    int u = q.front(); q.pop();" },
+                { num: 4, code: "    if (u == t) break; // Đã tới đích" },
+                { num: 5, code: "    for (int v : adj[u]) {" },
+                { num: 6, code: "        if (dist[v] == -1) {" },
+                { num: 7, code: "            dist[v] = dist[u] + 1;" },
+                { num: 8, code: "            q.push(v);" },
+                { num: 9, code: "        }" },
+                { num: 10, code: "    }" },
+                { num: 11, code: "}" }
+            ];
+
+            return (
+                <div className="fade-in space-y-6">
+                    {/* Bảng chọn bài toán mẫu */}
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-slate-700 whitespace-nowrap">Chọn đồ thị mẫu:</span>
+                            <select 
+                                value={presetKey} 
+                                onChange={e => setPresetKey(e.target.value)}
+                                className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                            >
+                                {Object.keys(PRESETS).map(k => (
+                                    <option key={k} value={k}>{PRESETS[k].name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
+                            <span>Thành phố xuất phát <strong className="text-blue-600">S = {graph.start}</strong></span>
+                            <span>Thành phố đích <strong className="text-emerald-600">T = {graph.target}</strong></span>
+                        </div>
+                    </div>
+
+                    {/* Thanh điều khiển */}
+                    <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setStepIdx(0)} className="sim-btn bg-rose-600 text-white">Reset</button>
+                            <button disabled={stepIdx === 0} onClick={() => setStepIdx(prev => prev - 1)} className="sim-btn bg-slate-700 disabled:opacity-30">◄ Trước</button>
+                            <button onClick={() => setIsPlaying(!isPlaying)} className={`sim-btn ${isPlaying ? 'bg-amber-500' : 'bg-blue-600'}`}>
+                                {isPlaying ? 'Tạm Dừng' : 'Tự Động Chạy'}
+                            </button>
+                            <button disabled={stepIdx === steps.length - 1} onClick={() => setStepIdx(prev => prev + 1)} className="sim-btn bg-slate-700 disabled:opacity-30">Sau ►</button>
+                        </div>
+                        <div className="font-mono text-xs text-blue-300">
+                            Bước: <span className="text-white font-bold text-sm">{stepIdx + 1}</span> / {steps.length}
+                        </div>
+                    </div>
+
+                    {/* Thông tin nhanh & Hàng đợi Queue */}
+                    <div className="p-4 bg-white rounded-xl border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4 text-center items-center">
+                        <div>
+                            <span className="text-[10px] font-black uppercase text-slate-400 block">Trạng Thái Hàng Đợi (Queue)</span>
+                            <div className="flex items-center justify-center gap-1.5 mt-2 min-h-[36px] overflow-x-auto">
+                                <span className="text-xs font-mono font-bold text-slate-400 mr-1">Đầu (Front) ➔</span>
+                                {cur.queue.length === 0 ? (
+                                    <span className="text-xs text-rose-500 font-bold italic">Queue rỗng</span>
+                                ) : (
+                                    cur.queue.map((val, idx) => (
+                                        <span key={idx} className="bg-blue-600 text-white font-mono text-xs font-bold px-2.5 py-1 rounded-md shadow-sm">
+                                            {val}
+                                        </span>
+                                    ))
+                                )}
+                                <span className="text-xs font-mono font-bold text-slate-400 ml-1">➔ Cuối (Back)</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span className="text-[10px] font-black uppercase text-slate-400 block">Hành Động Hiện Tại</span>
+                            <div className="font-mono text-xs font-bold text-blue-700 mt-2 px-2 py-1 bg-blue-50 rounded border border-blue-100 inline-block">
+                                {cur.action}
+                            </div>
+                        </div>
+
+                        <div>
+                            <span className="text-[10px] font-black uppercase text-slate-400 block">Đường Đi Ngắn Nhất (Path)</span>
+                            <div className="font-mono text-sm font-bold text-emerald-600 mt-2">
+                                {cur.path.length > 0 ? cur.path.join(" ➔ ") : (cur.dist[graph.target] !== -1 && cur.path.length === 0 ? `Độ dài = ${cur.dist[graph.target]}` : "Chưa xác định")}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Khung mô phỏng Đồ thị & Code */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                        {/* Đồ thị SVG */}
+                        <div className="content-card flex flex-col items-center justify-between mb-0 h-full">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Đồ Thị Thành Phố (Graph Visualizer)</h3>
+                            
+                            <div className="w-full my-auto flex flex-col items-center justify-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-4">
+                                <svg width="100%" height="280" viewBox="0 0 460 280" className="overflow-visible">
+                                    {/* Vẽ các Cạnh */}
+                                    {graph.edges.map(([u, v], idx) => {
+                                        const n1 = graph.nodes.find(n => n.id === u);
+                                        const n2 = graph.nodes.find(n => n.id === v);
+                                        const edgeKey = u < v ? `${u}-${v}` : `${v}-${u}`;
+                                        
+                                        let strokeColor = "#cbd5e1"; // Xám mặc định
+                                        let strokeWidth = "3";
+                                        
+                                        if (cur.path.length > 0) {
+                                            // Kiểm tra cạnh có thuộc đường đi ngắn nhất không
+                                            for (let i = 0; i < cur.path.length - 1; i++) {
+                                                const p1 = cur.path[i];
+                                                const p2 = cur.path[i+1];
+                                                if ((p1 === u && p2 === v) || (p1 === v && p2 === u)) {
+                                                    strokeColor = "#10b981"; // Xanh lá cây đậm
+                                                    strokeWidth = "6";
+                                                }
+                                            }
+                                        } else if (cur.activeEdge === edgeKey) {
+                                            strokeColor = "#3b82f6"; // Xanh dương đang duyệt
+                                            strokeWidth = "5";
+                                        }
+
+                                        return (
+                                            <line 
+                                                key={idx} 
+                                                x1={n1.x} y1={n1.y} 
+                                                x2={n2.x} y2={n2.y} 
+                                                stroke={strokeColor} 
+                                                strokeWidth={strokeWidth}
+                                                strokeLinecap="round"
+                                                className="transition-all duration-300"
+                                            />
+                                        );
+                                    })}
+
+                                    {/* Vẽ các Đỉnh (Thành phố) */}
+                                    {graph.nodes.map(n => {
+                                        const st = cur.nodeStates[n.id] || 'unvisited';
+                                        let fill = "#94a3b8"; // Unvisited
+                                        let stroke = "#64748b";
+                                        let textColor = "white";
+
+                                        if (st === 'current') {
+                                            fill = "#a855f7"; stroke = "#7e22ce"; // Tím (Đỉnh đang Pop)
+                                        } else if (st === 'neighbor') {
+                                            fill = "#f59e0b"; stroke = "#d97706"; // Cam (Đang xét kề)
+                                        } else if (st === 'in_queue') {
+                                            fill = "#3b82f6"; stroke = "#1d4ed8"; // Xanh dương (Trong Queue)
+                                        } else if (st === 'path') {
+                                            fill = "#10b981"; stroke = "#047857"; // Xanh lá (Đích/Thuộc đường đi)
+                                        } else if (st === 'visited') {
+                                            fill = "#475569"; stroke = "#1e293b"; // Xám đậm (Đã duyệt)
+                                        }
+
+                                        const dVal = cur.dist[n.id];
+                                        const distText = dVal === undefined || dVal === -1 ? "dist = ∞" : `dist = ${dVal}`;
+
+                                        return (
+                                            <g key={n.id} className="transition-all duration-300">
+                                                <circle 
+                                                    cx={n.x} cy={n.y} r="22" 
+                                                    fill={fill} stroke={stroke} strokeWidth="3"
+                                                    className={st === 'current' ? 'node-pulse shadow-lg' : ''}
+                                                />
+                                                <text 
+                                                    x={n.x} y={n.y + 1} 
+                                                    textAnchor="middle" alignmentBaseline="middle" 
+                                                    fill={textColor} fontSize="14" fontWeight="bold" fontFamily="monospace"
+                                                >
+                                                    {n.id}
+                                                </text>
+                                                {/* Nhãn khoảng cách dist */}
+                                                <rect 
+                                                    x={n.x - 28} y={n.y - 36} width="56" height="16" rx="4" 
+                                                    fill="#1e293b" opacity="0.85" 
+                                                />
+                                                <text 
+                                                    x={n.x} y={n.y - 25} 
+                                                    textAnchor="middle" fill="#38bdf8" fontSize="10" fontWeight="bold" fontFamily="monospace"
+                                                >
+                                                    {distText}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+                                </svg>
+                            </div>
+
+                            {/* Ghi chú màu sắc */}
+                            <div className="mt-3 flex flex-wrap justify-center gap-3 text-[11px] font-bold">
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-slate-400"></span> Chưa thăm</span>
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500"></span> Trong Queue</span>
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-purple-500"></span> Đang duyệt (Pop)</span>
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-500"></span> Đỉnh kề</span>
+                                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500"></span> Đường đi ngắn nhất</span>
+                            </div>
+
+                            <div className="mt-4 w-full px-4 py-3 rounded-lg text-xs font-bold text-center bg-blue-50 text-blue-900 border border-blue-200 min-h-[44px] flex items-center justify-center">
+                                💡 {cur.msg}
+                            </div>
+                        </div>
+
+                        {/* Highlight Mã C++ */}
+                        <div className="content-card bg-slate-900 border-none text-white p-6 shadow-2xl flex flex-col justify-between mb-0 h-full">
+                            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2 flex justify-between">
+                                <span>Mã Nguồn BFS C++</span>
+                                <span className="text-blue-400 font-mono">std::queue</span>
+                            </div>
+                            <div className="code-font space-y-1.5 my-auto">
+                                {codeLines.map((l) => (
+                                    <div 
+                                        key={l.num} 
+                                        className={`code-line flex items-center ${cur.line === l.num ? 'active text-blue-300' : 'text-slate-400'}`}
+                                    >
+                                        <span className="w-8 shrink-0 text-slate-600 text-xs font-mono">{l.num}</span>
+                                        <pre className="inline">{l.code}</pre>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 3: CÀI ĐẶT C++ */
+        const CodeTab = () => {
+            return (
+                <div className="fade-in max-w-5xl mx-auto space-y-6">
+                    <div className="content-card bg-slate-900 border-none p-0 overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center px-8 py-5 bg-slate-800 text-slate-400 border-b border-slate-700">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
+                                <span className="code-font italic text-sm font-bold text-slate-300">bfs_shortest_path.cpp</span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-700 px-3 py-1 rounded text-slate-100">C++</span>
+                        </div>
+                        <div className="p-8 overflow-x-auto">
+                            <pre className="code-font text-blue-300 leading-relaxed text-xs">
+{`#include <iostream>
+#include <vector>
+#include <queue>
+#include <algorithm>
+
+using namespace std;
+
+int main() {
+    int n, m, s, t;
+    // N: số đỉnh, M: số cạnh, S: xuất phát, T: đích
+    if (!(cin >> n >> m >> s >> t)) return 0;
+
+    // Danh sách kề biểu diễn đồ thị
+    vector<vector<int>> adj(n + 1);
+    for (int i = 0; i < m; i++) {
+        int u, v;
+        cin >> u >> v;
+        adj[u].push_back(v);
+        adj[v].push_back(u); // Đồ thị 2 chiều
+    }
+
+    // dist[u] lưu khoảng cách ngắn nhất từ S đến u
+    vector<int> dist(n + 1, -1);
+    // parent[u] dùng để truy vết lại đường đi
+    vector<int> parent(n + 1, -1);
+    
+    queue<int> q;
+
+    // 1. Khởi tạo thuật toán BFS
+    dist[s] = 0;
+    q.push(s);
+
+    // 2. Vòng lặp chính BFS
+    while (!q.empty()) {
+        int u = q.front();
+        q.pop();
+
+        if (u == t) break; // Đã tìm thấy đích T
+
+        for (int v : adj[u]) {
+            if (dist[v] == -1) {        // Nếu v chưa viếng thăm
+                dist[v] = dist[u] + 1;  // Khoảng cách bằng dist[u] + 1
+                parent[v] = u;          // Lưu đỉnh cha để truy vết
+                q.push(v);              // Đẩy v vào Queue
+            }
+        }
+    }
+
+    // 3. In kết quả độ dài đường đi ngắn nhất
+    cout << "Do dai duong di ngan nhat: " << dist[t] << "\\n";
+
+    // 4. Truy vết đường đi từ T về S (nếu có đường đi)
+    if (dist[t] != -1) {
+        vector<int> path;
+        for (int curr = t; curr != -1; curr = parent[curr]) {
+            path.push_back(curr);
+        }
+        reverse(path.begin(), path.end());
+
+        cout << "Duong di cu the: ";
+        for (int node : path) cout << node << " ";
+        cout << "\\n";
+    }
+
+    return 0;
+}`}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        /* TAB 4: TRẮC NGHIỆM */
+        const QuizTab = () => {
+            const questions = [
+                {
+                    q: "Thuật toán BFS duyệt đồ thị sử dụng cấu trúc dữ liệu chính nào?",
+                    o: ["Stack (Ngăn xếp)", "Queue (Hàng đợi)", "Priority Queue", "Array (Mảng đơn)"],
+                    a: 1,
+                    e: "BFS bắt buộc sử dụng Queue (Vào trước - Ra trước) để đảm bảo duyệt các đỉnh theo thứ tự khoảng cách tăng dần từ đỉnh xuất phát."
+                },
+                {
+                    q: "BFS tìm đường đi ngắn nhất chính xác nhất trên loại đồ thị nào?",
+                    o: ["Đồ thị có trọng số âm", "Đồ thị không trọng số (hoặc trọng số các cạnh bằng nhau)", "Đồ thị có trọng số bất kỳ", "Đồ thị cây nhị phân tìm kiếm"],
+                    a: 1,
+                    e: "BFS chỉ tìm được đường đi ngắn nhất trên đồ thị không có trọng số (hoặc trọng số tất cả các cạnh bằng nhau = 1)."
+                },
+                {
+                    q: "Tại sao Queue lại giúp BFS tìm được đường đi qua ÍT CON ĐƯỜNG NHẤT?",
+                    o: ["Vì Queue tự động sắp xếp lại các đỉnh", "Vì đỉnh nào ở gần (ít cạnh hơn) sẽ được push vào trước và lấy ra (pop) xử lý trước", "Vì Queue giúp chương trình chạy nhanh hơn Stack", "Vì Queue không bao giờ bị tràn bộ nhớ"],
+                    a: 1,
+                    e: "Nhờ cơ chế FIFO, các đỉnh cách S đúng 1 bước sẽ được lấy ra duyệt xong hết rồi mới tới các đỉnh cách S đúng 2 bước."
+                },
+                {
+                    q: "Độ phức tạp thời gian của thuật toán BFS trên đồ thị có V đỉnh và E cạnh là bao nhiêu?",
+                    o: ["O(V^2)", "O(E log V)", "O(V + E)", "O(V * E)"],
+                    a: 2,
+                    e: "Thuật toán BFS duyệt qua mỗi đỉnh tối đa 1 lần và mỗi cạnh tối đa 2 lần (đồ thị vô hướng), nên độ phức tạp là O(V + E)."
+                },
+                {
+                    q: "Mảng dist[u] (hoặc mảng visited[u]) trong BFS có vai trò quan trọng gì?",
+                    o: ["Để lưu trữ các cạnh của đồ thị", "Đánh dấu đỉnh đã được đẩy vào Queue để tránh duyệt lặp lại vô tận", "Đếm số lượng đỉnh trong đồ thị", "In ra màn hình kết quả"],
+                    a: 1,
+                    e: "Mảng dist[u] dùng để kiểm tra đỉnh u đã từng được viếng thăm chưa. Nếu dist[u] != -1 nghĩa là u đã nằm trong Queue hoặc đã duyệt xong, tránh lặp lại."
+                },
+                {
+                    q: "Khi duyệt đỉnh kề v từ đỉnh u trong BFS, công thức cập nhật khoảng cách là gì?",
+                    o: ["dist[v] = dist[u] + 1", "dist[v] = dist[v] + 1", "dist[u] = dist[v] + 1", "dist[v] = 1"],
+                    a: 0,
+                    e: "Khoảng cách từ S tới v bằng khoảng cách từ S tới u cộng thêm 1 con đường nối từ u sang v."
+                },
+                {
+                    q: "Thời điểm chuẩn xác nhất để đánh dấu đỉnh v đã thăm (gán dist[v]) là khi nào?",
+                    o: ["Khi lấy v ra khỏi Queue (pop)", "Ngay khi chuẩn bị đẩy v vào Queue (push)", "Khi kết thúc thuật toán", "Khi nhập dữ liệu đồ thị"],
+                    a: 1,
+                    e: "Phải gán dist[v] ngay khi PUSH v vào Queue để ngăn các đỉnh khác ở cùng bước đẩy trùng đỉnh v vào Queue nhiều lần."
+                },
+                {
+                    q: "Trong ví dụ bài toán (1-2, 2-3, 3-5, 5-4, 2-4) với S=1, T=4. Số con đường ngắn nhất BFS tìm được là bao nhiêu?",
+                    o: ["1", "2", "3", "4"],
+                    a: 1,
+                    e: "Đường đi ngắn nhất từ 1 tới 4 là: 1 -> 2 -> 4, đi qua đúng 2 con đường."
+                },
+                {
+                    q: "Nếu không có bất kỳ đường đi nào từ thành phố S đến T, kết quả BFS trả về nên là bao nhiêu?",
+                    o: ["0", "-1", "99999", "Không in gì cả"],
+                    a: 1,
+                    e: "Theo quy ước phổ biến của các bài tập lập trình (và đề bài BFS), nếu không tới được T thì dist[T] giữ nguyên giá trị khởi tạo là -1."
+                },
+                {
+                    q: "Để in ra CỤ THỂ các đỉnh trên đường đi từ S tới T, ta dùng thêm mảng dữ liệu nào?",
+                    o: ["Mảng parent[v] lưu đỉnh liền trước (cha) đã dẫn tới v", "Mảng count[v] đếm số lần thăm", "Mảng edge[v]", "Không cần thêm mảng nào"],
+                    a: 0,
+                    e: "Mảng parent[v] = u cho biết để tới v ta phải đi qua u. Sau khi tới T, ta chỉ cần đi ngược parent[T] -> parent[...] -> S là ra đường đi."
+                }
+            ];
+
+            const [userAns, setUserAns] = useState({});
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleSelect = (qIdx, oIdx) => {
+                if (submitted) return;
+                setUserAns(prev => ({ ...prev, [qIdx]: oIdx }));
+            };
+
+            const isAllAnswered = Object.keys(userAns).length === questions.length;
+            const score = Object.keys(userAns).filter(k => userAns[k] === questions[k].a).length;
+
+            return (
+                <div className="fade-in max-w-4xl mx-auto space-y-6 pb-24">
+                    <div className="content-card bg-blue-50 border-blue-200">
+                        <h2 className="text-xl font-black text-blue-700 uppercase tracking-widest mb-1 flex items-center">
+                            <Icon name="quiz" /> Bài Tập Trắc Nghiệm Củng Cố BFS & Queue
+                        </h2>
+                        <p className="text-sm text-blue-800">Trả lời toàn bộ 10 câu hỏi bên dưới để mở khóa nút Nộp Bài và xem đáp án giải thích chi tiết.</p>
+                    </div>
+
+                    {questions.map((item, qIdx) => (
+                        <div key={qIdx} className="content-card">
+                            <h3 className="font-bold text-slate-800 text-base mb-4 flex gap-2">
+                                <span className="text-blue-600 font-extrabold whitespace-nowrap">Câu {qIdx + 1}:</span>
+                                <span className="whitespace-pre-line">{item.q}</span>
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {item.o.map((opt, oIdx) => {
+                                    let cls = "p-3 rounded-xl border-2 text-sm font-semibold transition-all text-left cursor-pointer ";
+                                    
+                                    if (userAns[qIdx] === oIdx) {
+                                        cls += submitted 
+                                            ? (oIdx === item.a ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-rose-500 bg-rose-50 text-rose-800")
+                                            : "border-blue-600 bg-blue-50 text-blue-900";
+                                    } else {
+                                        cls += (submitted && oIdx === item.a)
+                                            ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                                            : "border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-300";
+                                    }
+
+                                    return (
+                                        <button key={oIdx} onClick={() => handleSelect(qIdx, oIdx)} className={cls}>
+                                            <span className="font-bold mr-1.5">{String.fromCharCode(65 + oIdx)}.</span> {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {submitted && (
+                                <div className={`mt-4 p-3 rounded-lg text-sm italic ${userAns[qIdx] === item.a ? "bg-emerald-100 text-emerald-900" : "bg-rose-100 text-rose-900"}`}>
+                                    <strong>Giải thích:</strong> {item.e}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border border-slate-200 flex items-center gap-4 z-50">
+                        {!submitted ? (
+                            <button 
+                                disabled={!isAllAnswered}
+                                onClick={() => setSubmitted(true)}
+                                className="bg-blue-600 text-white px-8 py-2.5 rounded-full font-black text-xs uppercase tracking-widest hover:bg-blue-700 disabled:opacity-40 transition-all shadow-lg shadow-blue-200"
+                            >
+                                {isAllAnswered ? "Nộp Bài Ngay" : `Đã làm ${Object.keys(userAns).length}/10 câu`}
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                <span className="font-extrabold text-sm text-blue-700">Điểm số: {score} / 10</span>
+                                <button 
+                                    onClick={() => { setUserAns({}); setSubmitted(false); window.scrollTo(0,0); }}
+                                    className="bg-slate-800 text-white px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-slate-900"
+                                >
+                                    Làm Lại
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        /* MAIN APP */
+        const App = () => {
+            const [tab, setTab] = useState('sim');
+
+            return (
+                <div className="min-h-screen bg-slate-50">
+                    <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b sticky top-0 z-[100] border-slate-200">
+                        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-100 transform -rotate-3">BFS</div>
+                                <div className="flex flex-col">
+                                    <div className="font-black text-lg text-slate-900 tracking-tighter italic uppercase leading-none">C++ BFS <span className="text-blue-600">std::queue</span></div>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Tìm Đường Đi Ngắn Nhất Trên Đồ Thị</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {[
+                                    {id:'theory', n:'Lý thuyết', i:'theory'},
+                                    {id:'sim', n:'Mô phỏng đồ thị', i:'sim'},
+                                    {id:'code', n:'Cài đặt C++', i:'code'},
+                                    {id:'quiz', n:'Luyện tập', i:'quiz'}
+                                ].map(t=>(
+                                    <button key={t.id} onClick={()=>setTab(t.id)} className={`tab-btn text-xs ${tab===t.id?'active':''}`}>
+                                        <Icon name={t.i} size={16}/>
+                                        <span className="hidden sm:inline ml-1">{t.n}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+                    <main className="max-w-7xl mx-auto p-6">
+                        <div className="max-w-5xl mx-auto">
+                            {tab === 'theory' && <TheoryTab />}
+                            {tab === 'sim' && <SimulationTab />}
+                            {tab === 'code' && <CodeTab />}
+                            {tab === 'quiz' && <QuizTab />}
+                        </div>
+                    </main>
+                    <footer className="max-w-7xl mx-auto px-6 py-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        &copy; 2026 Interactive Algorithm Learning Lab - BFS Visualizer with std::queue
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
