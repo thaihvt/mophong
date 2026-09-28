@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Cấu Trúc Dữ Liệu Priority Queue Trong C++ (std::priority_queue)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-size: 16px;
+        }
+
+        .code-font { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 13.5px; 
+            font-variant-ligatures: none;
+        }
+        
+        .content-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            padding: 28px;
+            margin-bottom: 24px;
+            border: 1px solid #f1f5f9;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            font-weight: 700;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+        .tab-btn.active {
+            color: #0284c7;
+            border-bottom-color: #0284c7;
+            background: #e0f2fe;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .code-line {
+            padding: 2px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s, border-left 0.2s;
+        }
+        .code-line.active {
+            background-color: rgba(14, 165, 233, 0.25) !important;
+            border-left: 4px solid #0284c7;
+            font-weight: 700;
+        }
+
+        .sim-btn {
+            height: 36px;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 0 16px;
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+        .sim-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.1); }
+        .sim-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .tree-node-circle {
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icon = ({ name, size=20 }) => {
+            const icons = {
+                theory: <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z" />,
+                sim: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />,
+                code: <React.Fragment><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></React.Fragment>,
+                quiz: <React.Fragment><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></React.Fragment>
+            };
+            return (
+                <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline mr-2">
+                    {icons[name]}
+                </svg>
+            );
+        };
+
+        const Latex = ({ formula, block = false }) => {
+            const ref = useRef(null);
+            useEffect(() => { 
+                if (ref.current && window.katex) {
+                    window.katex.render(formula, ref.current, { displayMode: block, throwOnError: false }); 
+                }
+            }, [formula, block]);
+            return <span ref={ref}></span>;
+        };
+
+        const TheoryTab = () => {
+            const memberFunctions = [
+                { name: "push(x)", desc: "Thêm phần tử x vào hàng đợi ưu tiên và tái cấu trúc lại Binary Heap.", comp: "O(\\log N)" },
+                { name: "emplace(args)", desc: "Khởi tạo phần tử trực tiếp tại chỗ và đưa vào hàng đợi ưu tiên.", comp: "O(\\log N)" },
+                { name: "pop()", desc: "Loại bỏ phần tử có độ ưu tiên cao nhất (ở đỉnh heap/top).", comp: "O(\\log N)" },
+                { name: "top()", desc: "Trả về tham chiếu đến phần tử có độ ưu tiên cao nhất ở đỉnh.", comp: "O(1)" },
+                { name: "size()", desc: "Trả về số lượng phần tử hiện có trong priority_queue.", comp: "O(1)" },
+                { name: "empty()", desc: "Trả về true nếu hàng đợi rỗng, ngược lại trả về false.", comp: "O(1)" },
+                { name: "swap(pq2)", desc: "Hoán đổi toàn bộ nội dung với một priority_queue khác cùng kiểu.", comp: "O(1)" }
+            ];
+
+            return (
+                <div className="fade-in space-y-6">
+                    <div className="content-card">
+                        <h2 className="text-2xl font-bold text-sky-700 mb-4 border-b border-sky-100 pb-2 flex items-center">
+                            <span className="w-2 h-8 bg-sky-600 rounded mr-3"></span>
+                            1. Tổng Quan Về Priority Queue Trong C++
+                        </h2>
+                        <div className="space-y-4 text-justify text-base leading-relaxed text-slate-700">
+                            <p>
+                                <strong>Priority Queue</strong> (Hàng đợi ưu tiên) trong C++ STL là một loại container adapter thiết kế đặc biệt để phần tử có <strong>độ ưu tiên cao nhất</strong> luôn nằm ở đỉnh (<code className="bg-slate-100 text-sky-700 px-2 py-0.5 rounded font-mono text-sm">top()</code>). Bất kể thứ tự đẩy phần tử vào là gì, phần tử ưu tiên nhất sẽ luôn được truy cập trong thời gian <Latex formula="O(1)" />.
+                            </p>
+                            <p>
+                                Về mặt bản chất, <code className="bg-slate-100 text-sky-700 px-2 py-0.5 rounded font-mono text-sm">std::priority_queue</code> được cài đặt dựa trên cấu trúc dữ liệu <strong>Binary Heap</strong> (Cây nhị phân đống) phía bên trong một container tuần tự (mặc định là <code className="bg-slate-100 text-sky-700 px-2 py-0.5 rounded font-mono text-sm">std::vector</code>).
+                            </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                <div className="p-4 bg-sky-50 rounded-xl border border-sky-200">
+                                    <h3 className="font-bold text-sky-900 mb-2 text-sm uppercase tracking-wider">1. Hàng đợi ưu tiên Lớn nhất (Max-Heap)</h3>
+                                    <p className="text-xs text-slate-600 mb-2">Phần tử có giá trị LỚN NHẤT nằm ở đỉnh <code className="font-mono">top()</code>. Đây là kiểu mặc định trong C++.</p>
+                                    <pre className="code-font bg-slate-900 text-sky-300 p-3 rounded-lg overflow-x-auto text-xs">
+{`#include <queue>
+using namespace std;
+
+priority_queue<int> maxPq; // Max-Heap mặc định`}
+                                    </pre>
+                                </div>
+                                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+                                    <h3 className="font-bold text-emerald-900 mb-2 text-sm uppercase tracking-wider">2. Hàng đợi ưu tiên Nhỏ nhất (Min-Heap)</h3>
+                                    <p className="text-xs text-slate-600 mb-2">Phần tử có giá trị NHỎ NHẤT nằm ở đỉnh <code className="font-mono">top()</code>. Sử dụng functor <code className="font-mono">greater&lt;T&gt;</code>.</p>
+                                    <pre className="code-font bg-slate-900 text-emerald-300 p-3 rounded-lg overflow-x-auto text-xs">
+{`#include <queue>
+using namespace std;
+
+priority_queue<int, vector<int>, greater<int>> minPq;`}
+                                    </pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-sky-700 mb-4 flex items-center">
+                            <span className="w-2 h-6 bg-sky-500 rounded mr-3"></span>
+                            2. Các Hàm Thành Viên Và Độ Phức Tạp Thời Gian
+                        </h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr className="bg-slate-100 border-b border-slate-200">
+                                        <th className="p-3 font-bold text-slate-700">Hàm thành viên</th>
+                                        <th className="p-3 font-bold text-slate-700">Chức năng</th>
+                                        <th className="p-3 font-bold text-slate-700">Độ phức tạp</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700">
+                                    {memberFunctions.map((fn, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50">
+                                            <td className="p-3 font-mono font-bold text-sky-600">{fn.name}</td>
+                                            <td className="p-3">{fn.desc}</td>
+                                            <td className="p-3 font-mono font-bold text-emerald-600"><Latex formula={fn.comp} /></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="content-card">
+                        <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                            <span className="w-2 h-6 bg-slate-600 rounded mr-3"></span>
+                            3. Một Số Lưu Ý Quan Trọng Khi Sử Dụng
+                        </h2>
+                        <ul className="list-disc pl-6 space-y-2 text-sm text-slate-700 leading-relaxed">
+                            <li><strong>Không hỗ trợ Duyệt Iterator / Chỉ số:</strong> Bạn KHÔNG THỂ dùng toán tử <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">[]</code> hay dùng iterator (<code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">begin()</code>, <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">end()</code>) để duyệt qua toàn bộ phần tử trong <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">priority_queue</code>.</li>
+                            <li><strong>Chỉ thao tác với phần tử Đỉnh:</strong> Phương thức duy nhất để xem dữ liệu là <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">top()</code> và xóa dữ liệu là <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">pop()</code>. Muốn duyệt hết, bạn bắt buộc phải vừa đọc <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">top()</code> vừa <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">pop()</code> liên tục cho đến khi rỗng.</li>
+                            <li><strong>Lỗi Undefined Behavior khi rỗng:</strong> Gọi <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">top()</code> hoặc <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">pop()</code> khi priority_queue đang rỗng (<code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">empty() == true</code>) sẽ dẫn đến lỗi bộ nhớ Runtime Error. Hãy luôn kiểm tra <code className="bg-slate-100 text-slate-800 px-1.5 py-0.5 rounded font-mono">!pq.empty()</code> trước!</li>
+                            <li><strong>Cấu trúc Binary Heap phía dưới:</strong> Binary Heap là cây nhị phân gần như hoàn chỉnh, trong đó nút cha luôn có độ ưu tiên lớn hơn hoặc bằng (với Max-Heap) các nút con của nó.</li>
+                        </ul>
+                    </div>
+                </div>
+            );
+        };
+
+        const SimulationTab = () => {
+            const [heap, setHeap] = useState([90, 75, 80, 40, 60, 50, 70]);
+            const [isMinHeap, setIsMinHeap] = useState(false);
+            const [inputVal, setInputVal] = useState("95");
+            const [logs, setLogs] = useState([]);
+            const [activeLine, setActiveLine] = useState(1);
+            const [activeNodeIdx, setActiveNodeIdx] = useState(0);
+            const [toastMsg, setToastMsg] = useState("");
+
+            const showToast = (msg) => {
+                setToastMsg(msg);
+                setTimeout(() => setToastMsg(""), 3500);
+            };
+
+            // Hàm Heapify cho Max-Heap / Min-Heap
+            const heapPush = (arr, val, minFlag) => {
+                const res = [...arr, val];
+                let i = res.length - 1;
+                while (i > 0) {
+                    let parent = Math.floor((i - 1) / 2);
+                    let needSwap = minFlag ? res[i] < res[parent] : res[i] > res[parent];
+                    if (needSwap) {
+                        [res[i], res[parent]] = [res[parent], res[i]];
+                        i = parent;
+                    } else break;
+                }
+                return res;
+            };
+
+            const heapPop = (arr, minFlag) => {
+                if (arr.length <= 1) return [];
+                const res = [...arr];
+                res[0] = res.pop();
+                let i = 0;
+                const len = res.length;
+                while (true) {
+                    let left = 2 * i + 1;
+                    let right = 2 * i + 2;
+                    let target = i;
+
+                    if (left < len) {
+                        let cmpLeft = minFlag ? res[left] < res[target] : res[left] > res[target];
+                        if (cmpLeft) target = left;
+                    }
+                    if (right < len) {
+                        let cmpRight = minFlag ? res[right] < res[target] : res[right] > res[target];
+                        if (cmpRight) target = right;
+                    }
+
+                    if (target !== i) {
+                        [res[i], res[target]] = [res[target], res[i]];
+                        i = target;
+                    } else break;
+                }
+                return res;
+            };
+
+            const rebuildHeap = (arr, minFlag) => {
+                let res = [];
+                for (let val of arr) {
+                    res = heapPush(res, val, minFlag);
+                }
+                return res;
+            };
+
+            const codeSnippet = [
+                { num: 1, code: isMinHeap ? "priority_queue<int, vector<int>, greater<int>> pq;" : "priority_queue<int> pq; // Max-Heap mặc định" },
+                { num: 2, code: `pq.push(${inputVal || 'x'}); // Thêm x vào Cây Heap` },
+                { num: 3, code: "cout << pq.top(); // Lấy giá trị đỉnh Cây (Gốc)" },
+                { num: 4, code: "pq.pop(); // Xóa phần tử Gốc & Tái cấu trúc" },
+                { num: 5, code: "pq.size(); // Trả về số nút trên Cây" }
+            ];
+
+            const addLog = (msg) => {
+                setLogs(prev => [msg, ...prev.slice(0, 5)]);
+            };
+
+            const handlePush = () => {
+                if (!inputVal && inputVal !== "0") return;
+                const val = parseInt(inputVal, 10);
+                if (isNaN(val)) return;
+
+                if (heap.length >= 15) {
+                    showToast("Tối đa 15 phần tử để hiển thị cây nhị phân đẹp mắt nhất!");
+                    return;
+                }
+                
+                const nextHeap = heapPush(heap, val, isMinHeap);
+                setHeap(nextHeap);
+                setActiveLine(2);
+                setActiveNodeIdx(0);
+                addLog(`push(${val}): Thêm ${val} vào cây Heap. Gốc top() = ${nextHeap[0]}`);
+            };
+
+            const handlePop = () => {
+                if (heap.length === 0) return;
+                const removed = heap[0];
+                const nextHeap = heapPop(heap, isMinHeap);
+                setHeap(nextHeap);
+                setActiveLine(4);
+                setActiveNodeIdx(0);
+                addLog(`pop(): Đã xóa phần tử gốc (${removed}). Gốc mới = ${nextHeap.length > 0 ? nextHeap[0] : 'Rỗng'}`);
+            };
+
+            const handleGetTop = () => {
+                if (heap.length === 0) return;
+                setActiveLine(3);
+                setActiveNodeIdx(0);
+                addLog(`top(): Phần tử có độ ưu tiên cao nhất tại Gốc là ${heap[0]}.`);
+            };
+
+            const handleLoadSample = () => {
+                const sample = isMinHeap ? [10, 20, 15, 40, 50, 30, 25] : [90, 75, 80, 40, 60, 50, 70];
+                setHeap(sample);
+                setActiveLine(1);
+                setActiveNodeIdx(0);
+                addLog("Đã nạp cây nhị phân mẫu gồm 7 phần tử.");
+            };
+
+            const toggleType = () => {
+                const newMode = !isMinHeap;
+                setIsMinHeap(newMode);
+                const rebuilt = rebuildHeap(heap, newMode);
+                setHeap(rebuilt);
+                setActiveLine(1);
+                addLog(`Chuyển chế độ: ${newMode ? 'Min-Heap (Số nhỏ ở đỉnh)' : 'Max-Heap (Số lớn ở đỉnh)'}`);
+            };
+
+            /* Tính toán tọa độ (x, y) trên SVG cho từng nút của Cây Nhị Phân */
+            const getNodePos = (idx) => {
+                const level = Math.floor(Math.log2(idx + 1));
+                const k = idx - (Math.pow(2, level) - 1);
+                const deltaX = 600 / Math.pow(2, level + 1);
+                const x = deltaX * (2 * k + 1);
+                const y = 45 + level * 65;
+                return { x, y };
+            };
+
+            return (
+                <div className="fade-in space-y-6">
+                    {/* Toast Notification cho Giới hạn 15 nút */}
+                    {toastMsg && (
+                        <div className="fixed top-20 right-6 bg-rose-600 text-white px-5 py-3 rounded-xl shadow-2xl font-bold text-xs z-50 fade-in flex items-center gap-2">
+                            <span>⚠️ {toastMsg}</span>
+                        </div>
+                    )}
+
+                    {/* Thanh điều khiển nhập liệu */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Giá trị x:</span>
+                            <input 
+                                type="number" 
+                                value={inputVal}
+                                onChange={e => setInputVal(e.target.value)}
+                                className="w-24 px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold font-mono focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            />
+                            <button 
+                                onClick={toggleType}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all border ${
+                                    isMinHeap 
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300' 
+                                        : 'bg-sky-100 text-sky-800 border-sky-300'
+                                }`}
+                            >
+                                Kiểu: {isMinHeap ? "Min-Heap ⬇" : "Max-Heap ⬆"}
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button onClick={handlePush} className="sim-btn bg-sky-600 text-white">Push(x)</button>
+                            <button disabled={heap.length === 0} onClick={handleGetTop} className="sim-btn bg-amber-600 text-white">Top()</button>
+                            <button disabled={heap.length === 0} onClick={handlePop} className="sim-btn bg-rose-600 text-white">Pop()</button>
+                            <button onClick={handleLoadSample} className="sim-btn bg-indigo-600 text-white">Cây Mẫu</button>
+                            <button disabled={heap.length === 0} onClick={() => { setHeap([]); addLog("Đã xóa sạch priority_queue."); }} className="sim-btn bg-slate-700 text-white">Clear</button>
+                        </div>
+                    </div>
+
+                    {/* Khung mô phỏng Cây đống & Mã C++ */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                        {/* Đồ họa Trực quan Cây Nhị Phân SVG */}
+                        <div className="content-card flex flex-col justify-between mb-0 h-full">
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2 flex justify-between items-center">
+                                <span>Cấu Trúc Cây Nhị Phân (Binary Heap Tree)</span>
+                                <span className="font-mono text-sky-600 font-bold">Số nút: {heap.length}/15</span>
+                            </h3>
+
+                            {/* Vẽ Cây Nhị Phân bằng SVG */}
+                            <div className="my-auto py-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col items-center justify-center min-h-[290px] relative overflow-hidden shadow-inner">
+                                {heap.length === 0 ? (
+                                    <div className="text-slate-500 font-bold italic text-sm">Cây đống hiện đang rỗng (empty)</div>
+                                ) : (
+                                    <svg viewBox="0 0 600 300" className="w-full h-full max-h-[300px]">
+                                        {/* Vẽ các Cạnh nối Cha - Con */}
+                                        {heap.map((_, i) => {
+                                            if (i === 0) return null;
+                                            const parentIdx = Math.floor((i - 1) / 2);
+                                            const pPos = getNodePos(parentIdx);
+                                            const cPos = getNodePos(i);
+                                            return (
+                                                <line 
+                                                    key={`line-${i}`}
+                                                    x1={pPos.x} y1={pPos.y}
+                                                    x2={cPos.x} y2={cPos.y}
+                                                    stroke="#475569" strokeWidth="2.5" strokeDasharray="4 2"
+                                                />
+                                            );
+                                        })}
+
+                                        {/* Vẽ các Nút Tròn (Circle Nodes) */}
+                                        {heap.map((val, i) => {
+                                            const pos = getNodePos(i);
+                                            const isRoot = i === 0;
+                                            return (
+                                                <g key={`node-${i}`} className="tree-node-circle cursor-pointer">
+                                                    <circle 
+                                                        cx={pos.x} cy={pos.y} r="18"
+                                                        fill={isRoot ? "#f59e0b" : (isMinHeap ? "#10b981" : "#0284c7")}
+                                                        stroke={isRoot ? "#fef3c7" : "#38bdf8"}
+                                                        strokeWidth="2.5"
+                                                        className="shadow-lg"
+                                                    />
+                                                    <text 
+                                                        x={pos.x} y={pos.y + 5} 
+                                                        textAnchor="middle" 
+                                                        fill="#ffffff" 
+                                                        fontSize="13" 
+                                                        fontWeight="800" 
+                                                        fontFamily="JetBrains Mono"
+                                                    >
+                                                        {val}
+                                                    </text>
+                                                    {/* Nhãn chỉ số mảng [i] */}
+                                                    <text 
+                                                        x={pos.x} y={pos.y - 23} 
+                                                        textAnchor="middle" 
+                                                        fill="#94a3b8" 
+                                                        fontSize="9" 
+                                                        fontWeight="700" 
+                                                        fontFamily="JetBrains Mono"
+                                                    >
+                                                        [{i}]
+                                                    </text>
+                                                </g>
+                                            );
+                                        })}
+                                    </svg>
+                                )}
+                            </div>
+
+                            {/* Bảng Mảng biểu diễn song song bên dưới */}
+                            <div className="mt-4 pt-3 border-t border-slate-100">
+                                <div className="text-[10px] font-extrabold uppercase text-slate-400 mb-2 text-center">Mảng biểu diễn bộ nhớ liên tiếp (std::vector):</div>
+                                <div className="flex flex-wrap justify-center gap-1.5 overflow-x-auto pb-1">
+                                    {heap.length === 0 ? (
+                                        <span className="text-slate-400 text-xs italic">[ Mảng rỗng ]</span>
+                                    ) : (
+                                        heap.map((val, idx) => (
+                                            <div key={idx} className="flex flex-col items-center">
+                                                <div className={`w-9 h-9 rounded-lg font-mono font-bold text-xs flex items-center justify-center border ${
+                                                    idx === 0 
+                                                        ? 'bg-amber-400 border-amber-600 text-slate-900 font-extrabold shadow-sm' 
+                                                        : 'bg-white border-sky-300 text-slate-800'
+                                                }`}>
+                                                    {val}
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 font-mono">[{idx}]</span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Nhật ký thao tác */}
+                            <div className="mt-3 bg-slate-900 text-slate-300 p-3 rounded-xl text-xs font-mono min-h-[85px]">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nhật ký hoạt động:</div>
+                                {logs.length === 0 ? (
+                                    <div className="text-slate-600 italic">Chưa có thao tác nào.</div>
+                                ) : (
+                                    logs.slice(0, 3).map((l, i) => <div key={i} className="text-emerald-400">➔ {l}</div>)
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Code Highlight tương ứng */}
+                        <div className="content-card bg-slate-900 border-none text-white p-6 shadow-2xl flex flex-col justify-between mb-0 h-full">
+                            <div className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 border-b border-slate-800 pb-2 flex justify-between">
+                                <span>Mã C++ Tương Ứng</span>
+                                <span className="text-sky-400 font-mono">std::priority_queue</span>
+                            </div>
+                            <div className="code-font space-y-2 my-auto">
+                                {codeSnippet.map((l) => (
+                                    <div 
+                                        key={l.num} 
+                                        className={`code-line flex items-center ${activeLine === l.num ? 'active text-sky-300' : 'text-slate-400'}`}
+                                    >
+                                        <span className="w-8 shrink-0 text-slate-600 text-xs font-mono">{l.num}</span>
+                                        <pre className="inline overflow-x-auto">{l.code}</pre>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CodeTab = () => {
+            return (
+                <div className="fade-in max-w-5xl mx-auto space-y-6">
+                    <div className="content-card bg-slate-900 border-none p-0 overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center px-8 py-5 bg-slate-800 text-slate-400 border-b border-slate-700">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
+                                <span className="code-font italic text-sm font-bold text-slate-300">priority_queue_demo.cpp</span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-700 px-3 py-1 rounded text-slate-100">C++ STL</span>
+                        </div>
+                        <div className="p-8 overflow-x-auto">
+                            <pre className="code-font text-sky-300 leading-relaxed text-xs">
+{`#include <iostream>
+#include <queue>
+#include <vector>
+#include <string>
+
+using namespace std;
+
+// Struct phục vụ bài toán tùy biến độ ưu tiên (Custom Comparator)
+struct SinhVien {
+    string ten;
+    double gpa;
+
+    // Định nghĩa toán tử < để ưu tiên SinhVien có GPA cao hơn
+    bool operator<(const SinhVien& other) const {
+        return gpa < other.gpa; // GPA lớn hơn sẽ đứng trước trong Max-Heap
+    }
+};
+
+int main() {
+    // 1. KHAI BÁO MAX-HEAP MẶC ĐỊNH (Phần tử lớn nhất ở đỉnh)
+    priority_queue<int> maxPq;
+
+    // 2. NHẬP / THÊM PHẦN TỬ - O(log N)
+    maxPq.push(30);
+    maxPq.push(10);
+    maxPq.push(50);
+    maxPq.push(20);
+
+    cout << "--- 1. DEMO MAX-HEAP MẶC ĐỊNH ---\\n";
+    cout << "So luong phan tu: " << maxPq.size() << "\\n";
+
+    // 3. LẤY PHẦN TỬ VÀ XÓA CHO ĐẾN KHI RỖNG
+    cout << "Thu tu lay ra tu Max-Heap: ";
+    while (!maxPq.empty()) {
+        cout << maxPq.top() << " "; // Đọc đỉnh top() - O(1)
+        maxPq.pop();               // Xóa phần tử đỉnh - O(log N)
+    }
+    cout << "\\n\\n";
+
+
+    // 4. KHAI BÁO MIN-HEAP (Phần tử nhỏ nhất ở đỉnh)
+    priority_queue<int, vector<int>, greater<int>> minPq;
+    minPq.push(30);
+    minPq.push(10);
+    minPq.push(50);
+    minPq.push(20);
+
+    cout << "--- 2. DEMO MIN-HEAP (greater<int>) ---\\n";
+    cout << "Thu tu lay ra tu Min-Heap: ";
+    while (!minPq.empty()) {
+        cout << minPq.top() << " "; // Lấy ra phần tử nhỏ nhất
+        minPq.pop();
+    }
+    cout << "\\n\\n";
+
+
+    // 5. DEMO VỚI STRUCT TỰ ĐỊNH NGHĨA
+    priority_queue<SinhVien> pqSV;
+    pqSV.push({"An", 3.2});
+    pqSV.push({"Binh", 3.9});
+    pqSV.push({"Cuong", 2.8});
+
+    cout << "--- 3. DEMO STRUCT SINH VIEN (Ưu tiên GPA cao nhất) ---\\n";
+    while (!pqSV.empty()) {
+        SinhVien sv = pqSV.top();
+        cout << sv.ten << " - GPA: " << sv.gpa << "\\n";
+        pqSV.pop();
+    }
+
+    return 0;
+}`}
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const QuizTab = () => {
+            const questions = [
+                {
+                    q: "Theo mặc định trong C++ STL, priority_queue<int> sắp xếp phần tử như thế nào?",
+                    o: ["Theo kiểu Min-Heap (Phần tử nhỏ nhất ở top)", "Theo kiểu Max-Heap (Phần tử lớn nhất ở top)", "Theo thứ tự vào trước ra trước (FIFO)", "Theo thứ tự ngẫu nhiên"],
+                    a: 1,
+                    e: "Mặc định priority_queue<T> triển khai một Max-Heap, nghĩa là phần tử lớn nhất luôn nằm ở đỉnh top()."
+                },
+                {
+                    q: "Cần bao gồm thư viện nào trong C++ để sử dụng std::priority_queue?",
+                    o: ["#include <algorithm>", "#include <vector>", "#include <queue>", "#include <priority_queue>"],
+                    a: 2,
+                    e: "Cả std::queue và std::priority_queue đều nằm trong file tiêu đề <queue>."
+                },
+                {
+                    q: "Độ phức tạp thời gian khi gọi hàm push() hoặc pop() trong priority_queue chứa N phần tử là bao nhiêu?",
+                    o: ["O(1)", "O(log N)", "O(N)", "O(N log N)"],
+                    a: 1,
+                    e: "Do cài đặt bằng Binary Heap, các thao tác chèn (push) và xóa đỉnh (pop) tốn thời gian tái cấu trúc đống O(log N)."
+                },
+                {
+                    q: "Phương thức nào được dùng để xem giá trị phần tử có độ ưu tiên cao nhất ở đỉnh mà KHÔNG xóa nó?",
+                    o: ["front()", "top()", "peek()", "head()"],
+                    a: 1,
+                    e: "Khác với std::queue dùng front(), std::priority_queue sử dụng hàm top() để lấy giá trị đỉnh."
+                },
+                {
+                    q: "Để khai báo một priority_queue lưu số nguyên dạng Min-Heap (số nhỏ nhất ở đỉnh top), cú pháp nào đúng?",
+                    o: ["priority_queue<int, min> pq;", "priority_queue<int, vector<int>, greater<int>> pq;", "priority_queue<int, greater> pq;", "min_priority_queue<int> pq;"],
+                    a: 1,
+                    e: "Cú pháp chuẩn cho Min-Heap yêu cầu truyền đủ 3 tham số template: kiểu dữ liệu, container lưu trữ, và functor greater<T>."
+                },
+                {
+                    q: "Phát biểu nào sau đây đúng về khả năng duyệt phần tử của std::priority_queue?",
+                    o: ["Có thể dùng iterator begin() và end() để duyệt", "Có thể dùng chỉ số [] như pq[i] để truy cập", "Không hỗ trợ iterator hay chỉ số, chỉ có thể xem đỉnh qua top()", "Có thể duyệt bằng hàm at(i)"],
+                    a: 2,
+                    e: "Priority Queue là một container adapter, không cung cấp iterator hay truy cập ngẫu nhiên qua chỉ số."
+                },
+                {
+                    q: "Độ phức tạp thời gian khi gọi hàm top() trên priority_queue là bao nhiêu?",
+                    o: ["O(1)", "O(log N)", "O(N)", "O(1) hoặc O(log N) tùy heap"],
+                    a: 0,
+                    e: "Phần tử ưu tiên cao nhất luôn nằm sẵn ở vị trí gốc của cây nhị phân đống, nên đọc đỉnh top() tốn O(1)."
+                },
+                {
+                    q: "Chuyện gì xảy ra nếu bạn gọi pq.top() hoặc pq.pop() khi pq.empty() == true?",
+                    o: ["Trả về giá trị 0", "Trả về nullptr", "Gây ra lỗi Undefined Behavior / Runtime Crash", "Ngoại lệ (Exception) tự động được bắt"],
+                    a: 2,
+                    e: "Truy cập hoặc xóa trên một priority_queue rỗng là hành vi không xác định (Undefined Behavior) và thường làm sập chương trình."
+                },
+                {
+                    q: "Container mặc định phía dưới được std::priority_queue sử dụng để lưu trữ dữ liệu là gì?",
+                    o: ["std::list", "std::deque", "std::vector", "std::set"],
+                    a: 2,
+                    e: "Mặc định template dùng std::vector làm container lưu trữ liên tiếp phía dưới cho Binary Heap."
+                },
+                {
+                    q: "Trong bài toán Dijkstra tìm đường đi ngắn nhất, ta nên dùng loại priority_queue nào?",
+                    o: ["Max-Heap", "Min-Heap", "Queue thông thường", "Stack"],
+                    a: 1,
+                    e: "Thuật toán Dijkstra luôn cần trích xuất đỉnh có khoảng cách ngắn nhất trước, do đó Min-Heap là lựa chọn phù hợp nhất."
+                }
+            ];
+
+            const [userAns, setUserAns] = useState({});
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleSelect = (qIdx, oIdx) => {
+                if (submitted) return;
+                setUserAns(prev => ({ ...prev, [qIdx]: oIdx }));
+            };
+
+            const isAllAnswered = Object.keys(userAns).length === questions.length;
+            const score = Object.keys(userAns).filter(k => userAns[k] === questions[k].a).length;
+
+            return (
+                <div className="fade-in max-w-4xl mx-auto space-y-6 pb-24">
+                    <div className="content-card bg-sky-50 border-sky-200">
+                        <h2 className="text-xl font-black text-sky-700 uppercase tracking-widest mb-1 flex items-center">
+                            <Icon name="quiz" /> Trắc Nghiệm Ôn Tập Kiến Thức C++ Priority Queue
+                        </h2>
+                        <p className="text-sm text-sky-800">Chọn đáp án cho tất cả 10 câu hỏi để mở khóa nút Kiểm Tra và xem giải thích chi tiết.</p>
+                    </div>
+
+                    {questions.map((item, qIdx) => (
+                        <div key={qIdx} className="content-card">
+                            <h3 className="font-bold text-slate-800 text-base mb-4 flex gap-2">
+                                <span className="text-sky-600 font-extrabold whitespace-nowrap">Câu {qIdx + 1}:</span>
+                                <span>{item.q}</span>
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {item.o.map((opt, oIdx) => {
+                                    let cls = "p-3 rounded-xl border-2 text-sm font-semibold transition-all text-left cursor-pointer ";
+                                    
+                                    if (userAns[qIdx] === oIdx) {
+                                        cls += submitted 
+                                            ? (oIdx === item.a ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-rose-500 bg-rose-50 text-rose-800")
+                                            : "border-sky-600 bg-sky-50 text-sky-900";
+                                    } else {
+                                        cls += (submitted && oIdx === item.a)
+                                            ? "border-emerald-500 bg-emerald-50 text-emerald-800"
+                                            : "border-slate-100 bg-slate-50 text-slate-600 hover:border-slate-300";
+                                    }
+
+                                    return (
+                                        <button key={oIdx} onClick={() => handleSelect(qIdx, oIdx)} className={cls}>
+                                            <span className="font-bold mr-1.5">{String.fromCharCode(65 + oIdx)}.</span> {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {submitted && (
+                                <div className={`mt-4 p-3 rounded-lg text-sm italic ${userAns[qIdx] === item.a ? "bg-emerald-100 text-emerald-900" : "bg-rose-100 text-rose-900"}`}>
+                                    <strong>Giải thích:</strong> {item.e}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+
+                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border border-slate-200 flex items-center gap-4 z-50">
+                        {!submitted ? (
+                            <button 
+                                disabled={!isAllAnswered}
+                                onClick={() => setSubmitted(true)}
+                                className="bg-sky-600 text-white px-8 py-2.5 rounded-full font-black text-xs uppercase tracking-widest hover:bg-sky-700 disabled:opacity-40 transition-all shadow-lg shadow-sky-200"
+                            >
+                                {isAllAnswered ? "Kiểm Tra Đáp Án" : `Đã chọn ${Object.keys(userAns).length}/10 câu`}
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                <span className="font-extrabold text-sm text-sky-700">Điểm số: {score} / 10</span>
+                                <button 
+                                    onClick={() => { setUserAns({}); setSubmitted(false); window.scrollTo(0,0); }}
+                                    className="bg-slate-800 text-white px-6 py-2 rounded-full font-bold text-xs uppercase tracking-widest hover:bg-slate-900"
+                                >
+                                    Làm Lại
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [tab, setTab] = useState('theory');
+
+            return (
+                <div className="min-h-screen bg-slate-50">
+                    <nav className="bg-white/80 backdrop-blur-md shadow-sm border-b sticky top-0 z-[100] border-slate-200">
+                        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-700 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-sky-100 transform -rotate-3">PQ</div>
+                                <div className="flex flex-col">
+                                    <div className="font-black text-lg text-slate-900 tracking-tighter italic uppercase leading-none">C++ <span className="text-sky-600">std::priority_queue</span></div>
+                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Binary Heap Tree Visualizer</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {[
+                                    {id:'theory', n:'Lý thuyết', i:'theory'},
+                                    {id:'sim', n:'Mô phỏng Cây', i:'sim'},
+                                    {id:'code', n:'Cài đặt C++', i:'code'},
+                                    {id:'quiz', n:'Luyện tập', i:'quiz'}
+                                ].map(t=>(
+                                    <button key={t.id} onClick={()=>setTab(t.id)} className={`tab-btn text-xs ${tab===t.id?'active':''}`}>
+                                        <Icon name={t.i} size={16}/>
+                                        <span className="hidden sm:inline ml-1">{t.n}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+                    <main className="max-w-7xl mx-auto p-6">
+                        <div className="max-w-5xl mx-auto">
+                            {tab === 'theory' && <TheoryTab />}
+                            {tab === 'sim' && <SimulationTab />}
+                            {tab === 'code' && <CodeTab />}
+                            {tab === 'quiz' && <QuizTab />}
+                        </div>
+                    </main>
+                    <footer className="max-w-7xl mx-auto px-6 py-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+                        &copy; 2026 Interactive Algorithm Learning Lab - C++ Priority Queue Binary Heap Visualizer
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
