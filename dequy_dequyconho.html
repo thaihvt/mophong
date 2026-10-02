@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mô Phỏng Đệ Quy Fibonacci: Thường vs Có Nhớ</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #cbd5e1;
+            --text-color: #0f172a;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        /* --- CẤU TRÚC THẺ (TABS) --- */
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            background: #e2e8f0;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* --- THANH ĐIỀU KHIỂN --- */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #f1f5f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .controls input[type="number"] {
+            width: 70px;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            color: white;
+            transition: background 0.2s;
+        }
+
+        .btn-run { background: var(--primary-color); }
+        .btn-step { background: var(--success-color); }
+        .btn-reset { background: #64748b; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .stat-badge {
+            margin-left: auto;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        /* --- BỐ TRÍ KHU VỰC MÔ PHỎNG --- */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-layout { grid-template-columns: 1fr; }
+        }
+
+        /* --- CODE & LOG --- */
+        .code-box {
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .code-line {
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .code-line.active {
+            background: #3b82f6;
+            color: white;
+            font-weight: bold;
+        }
+
+        .status-box {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary-color);
+            padding: 12px;
+            border-radius: 4px;
+            font-weight: 500;
+            margin-bottom: 15px;
+            min-height: 50px;
+        }
+
+        .log-box {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 13px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        /* --- VISUALIZATION AREA --- */
+        .visual-panel {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* STACK VISUALIZER */
+        .stack-container {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 6px;
+            min-height: 200px;
+            justify-content: flex-start;
+            border: 2px dashed #cbd5e1;
+            padding: 10px;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .stack-item {
+            background: #e2e8f0;
+            border: 2px solid #94a3b8;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stack-item.top {
+            border-color: var(--primary-color);
+            background: #eff6ff;
+            color: var(--primary-color);
+        }
+
+        .stack-item.memo-hit {
+            border-color: var(--warning-color);
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        /* DP TABLE VISUALIZER (Bảng nhớ) */
+        .dp-table-wrapper {
+            margin-top: 10px;
+        }
+
+        .dp-grid {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 8px 0;
+        }
+
+        .dp-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 45px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            overflow: hidden;
+        }
+
+        .dp-cell .idx {
+            background: #f1f5f9;
+            width: 100%;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 0;
+            color: #64748b;
+        }
+
+        .dp-cell .val {
+            padding: 6px 0;
+            font-weight: bold;
+            color: #0f172a;
+        }
+
+        .dp-cell.filled {
+            border-color: var(--success-color);
+            background: #f0fdf4;
+        }
+
+        .dp-cell.filled .val {
+            color: var(--success-color);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Mô Phỏng Thuật Toán Đệ Quy Fibonacci</h1>
+
+    <!-- BỘ HAI THẺ TABS -->
+    <div class="tab-buttons">
+        <button class="tab-btn active" onclick="switchTab('tab1')">Thẻ 1: Đệ Quy Thường</button>
+        <button class="tab-btn" onclick="switchTab('tab2')">Thẻ 2: Đệ Quy Có Nhớ (DP)</button>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- THẺ 1: ĐỆ QUY THƯỜNG -->
+    <!-- ========================================================= -->
+    <div id="tab1" class="tab-content active">
+        <div class="controls">
+            <label><strong>Nhập N (0 - 6):</strong></label>
+            <input type="number" id="inputN1" min="0" max="6" value="4">
+            <button class="btn btn-run" onclick="startSim(1, true)">Tự động chạy</button>
+            <button class="btn btn-step" onclick="stepSim(1)">Từng bước</button>
+            <button class="btn btn-reset" onclick="resetSim(1)">Làm mới</button>
+            <div class="stat-badge" id="callCount1">Số lượt gọi F(n): 0</div>
+        </div>
+
+        <div class="grid-layout">
+            <div>
+                <div class="status-box" id="status1">Sẵn sàng mô phỏng đệ quy thường.</div>
+                <div class="code-box">
+                    <div id="t1_l1" class="code-line">ll F(int n)</div>
+                    <div id="t1_l2" class="code-line">{</div>
+                    <div id="t1_l3" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;if(n==0) return 0;</div>
+                    <div id="t1_l4" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;if(n==1) return 1;</div>
+                    <div id="t1_l5" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;return F(n-1) + F(n-2);</div>
+                    <div id="t1_l6" class="code-line">}</div>
+                </div>
+                <div class="log-box" id="log1"></div>
+            </div>
+
+            <div class="visual-panel">
+                <h4>Ngăn xếp cuộc gọi (Call Stack)</h4>
+                <div class="stack-container" id="stack1">
+                    <div style="color: #94a3b8; font-style: italic; text-align: center;">Stack rỗng</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- THẺ 2: ĐỆ QUY CÓ NHỚ (MEMOIZATION) -->
+    <!-- ========================================================= -->
+    <div id="tab2" class="tab-content">
+        <div class="controls">
+            <label><strong>Nhập N (0 - 10):</strong></label>
+            <input type="number" id="inputN2" min="0" max="10" value="5">
+            <button class="btn btn-run" onclick="startSim(2, true)">Tự động chạy</button>
+            <button class="btn btn-step" onclick="stepSim(2)">Từng bước</button>
+            <button class="btn btn-reset" onclick="resetSim(2)">Làm mới</button>
+            <div class="stat-badge" id="callCount2">Số lượt gọi F(n): 0</div>
+        </div>
+
+        <div class="grid-layout">
+            <div>
+                <div class="status-box" id="status2">Sẵn sàng mô phỏng đệ quy có nhớ.</div>
+                <div class="code-box">
+                    <div id="t2_l1" class="code-line">ll F(int n)</div>
+                    <div id="t2_l2" class="code-line">{</div>
+                    <div id="t2_l3" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;if(n==0) return 0;</div>
+                    <div id="t2_l4" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;if(n==1) return 1;</div>
+                    <div id="t2_l5" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;if(dp[n]>0) return dp[n];</div>
+                    <div id="t2_l6" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;dp[n] = F(n-1) + F(n-2);</div>
+                    <div id="t2_l7" class="code-line">&nbsp;&nbsp;&nbsp;&nbsp;return dp[n];</div>
+                    <div id="t2_l8" class="code-line">}</div>
+                </div>
+                <div class="log-box" id="log2"></div>
+            </div>
+
+            <div class="visual-panel">
+                <h4>Trạng thái Mảng Ghi Nhớ `dp[]`</h4>
+                <div class="dp-table-wrapper">
+                    <div class="dp-grid" id="dpGrid2"></div>
+                </div>
+
+                <h4 style="margin-top: 10px;">Ngăn xếp cuộc gọi (Call Stack)</h4>
+                <div class="stack-container" id="stack2">
+                    <div style="color: #94a3b8; font-style: italic; text-align: center;">Stack rỗng</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Quản lý Tabs
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+        if(tabId === 'tab1') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            document.getElementById('tab1').classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            document.getElementById('tab2').classList.add('active');
+        }
+    }
+
+    // Engine quản lý mô phỏng
+    let simState = {
+        1: { steps: [], index: -1, timer: null, callCount: 0 },
+        2: { steps: [], index: -1, timer: null, callCount: 0, dp: [] }
+    };
+
+    // --- TAB 1: SINH BƯỚC MÔ PHỎNG ĐỆ QUY THƯỜNG ---
+    function generateStepsTab1(n) {
+        let steps = [];
+        let callCount = 0;
+
+        function F(k) {
+            callCount++;
+            steps.push({ type: 'ENTER', n: k, line: 1, callCount, msg: `Gọi hàm F(${k})` });
+
+            if (k === 0) {
+                steps.push({ type: 'BASE', n: k, val: 0, line: 3, callCount, msg: `F(0): Thỏa điều kiện dừng n==0 ➔ Trả về 0` });
+                steps.push({ type: 'POP', n: k, val: 0, line: 3, callCount, msg: `Rút F(0) khỏi Stack` });
+                return 0;
+            }
+            if (k === 1) {
+                steps.push({ type: 'BASE', n: k, val: 1, line: 4, callCount, msg: `F(1): Thỏa điều kiện dừng n==1 ➔ Trả về 1` });
+                steps.push({ type: 'POP', n: k, val: 1, line: 4, callCount, msg: `Rút F(1) khỏi Stack` });
+                return 1;
+            }
+
+            steps.push({ type: 'RECUR', n: k, line: 5, callCount, msg: `F(${k}): Cần tính F(${k-1}) + F(${k-2})` });
+            let v1 = F(k - 1);
+            let v2 = F(k - 2);
+            let res = v1 + v2;
+
+            steps.push({ type: 'RETURN', n: k, val: res, line: 5, callCount, msg: `F(${k}) = F(${k-1}) + F(${k-2}) = ${v1} + ${v2} = ${res}` });
+            steps.push({ type: 'POP', n: k, val: res, line: 5, callCount, msg: `Rút F(${k}) khỏi Stack. Trả về ${res}` });
+            return res;
+        }
+
+        let ans = F(n);
+        steps.push({ type: 'END', val: ans, callCount, msg: `🎉 Đã hoàn thành! Kết quả F(${n}) = ${ans}` });
+        return { steps, callCount };
+    }
+
+    // --- TAB 2: SINH BƯỚC MÔ PHỎNG ĐỆ QUY CÓ NHỚ ---
+    function generateStepsTab2(n) {
+        let steps = [];
+        let callCount = 0;
+        let dp = new Array(n + 1).fill(0);
+
+        function F(k) {
+            callCount++;
+            steps.push({ type: 'ENTER', n: k, line: 1, callCount, dp: [...dp], msg: `Gọi hàm F(${k})` });
+
+            if (k === 0) {
+                steps.push({ type: 'BASE', n: k, val: 0, line: 3, callCount, dp: [...dp], msg: `F(0): Cơ sở n==0 ➔ Trả về 0` });
+                steps.push({ type: 'POP', n: k, val: 0, line: 3, callCount, dp: [...dp], msg: `Rút F(0) khỏi Stack` });
+                return 0;
+            }
+            if (k === 1) {
+                steps.push({ type: 'BASE', n: k, val: 1, line: 4, callCount, dp: [...dp], msg: `F(1): Cơ sở n==1 ➔ Trả về 1` });
+                steps.push({ type: 'POP', n: k, val: 1, line: 4, callCount, dp: [...dp], msg: `Rút F(1) khỏi Stack` });
+                return 1;
+            }
+
+            // Kiểm tra mảng ghi nhớ dp[n] > 0
+            if (dp[k] > 0) {
+                steps.push({ type: 'HIT', n: k, val: dp[k], line: 5, callCount, dp: [...dp], msg: `⚡ TRÙNG BỘ NHỚ! dp[${k}] = ${dp[k]} > 0 ➔ Trả về luôn, không cần đệ quy!` });
+                steps.push({ type: 'POP', n: k, val: dp[k], line: 5, callCount, dp: [...dp], msg: `Rút F(${k}) khỏi Stack` });
+                return dp[k];
+            }
+
+            steps.push({ type: 'RECUR', n: k, line: 6, callCount, dp: [...dp], msg: `F(${k}): Chưa có trong dp. Gọi F(${k-1}) và F(${k-2})` });
+            let v1 = F(k - 1);
+            let v2 = F(k - 2);
+            dp[k] = v1 + v2;
+
+            steps.push({ type: 'MEMOIZE', n: k, val: dp[k], line: 6, callCount, dp: [...dp], msg: `Lưu kết quả: dp[${k}] = ${dp[k]}` });
+            steps.push({ type: 'RETURN', n: k, val: dp[k], line: 7, callCount, dp: [...dp], msg: `Trả về dp[${k}] = ${dp[k]}` });
+            steps.push({ type: 'POP', n: k, val: dp[k], line: 7, callCount, dp: [...dp], msg: `Rút F(${k}) khỏi Stack` });
+            return dp[k];
+        }
+
+        let ans = F(n);
+        steps.push({ type: 'END', val: ans, callCount, dp: [...dp], msg: `🎉 Đã hoàn thành! Kết quả F(${n}) = ${ans}` });
+        return { steps, callCount };
+    }
+
+    // UPDATE GIAO DIỆN HÌNH ẢNH
+    function updateUI(tabNum) {
+        let st = simState[tabNum];
+        if (st.index < 0 || st.index >= st.steps.length) return;
+
+        let curr = st.steps[st.index];
+
+        // 1. Cập nhật Badge đếm số lần gọi hàm
+        document.getElementById(`callCount${tabNum}`).innerText = `Số lượt gọi F(n): ${curr.callCount}`;
+        document.getElementById(`status${tabNum}`).innerText = curr.msg;
+
+        // 2. HighLight Dòng Code C++
+        let lineCount = tabNum === 1 ? 6 : 8;
+        for (let i = 1; i <= lineCount; i++) {
+            document.getElementById(`t${tabNum}_l${i}`).classList.remove('active');
+        }
+        if (curr.line > 0) {
+            document.getElementById(`t${tabNum}_l${curr.line}`).classList.add('active');
+        }
+
+        // 3. Tái tạo Stack
+        let activeStack = [];
+        for (let i = 0; i <= st.index; i++) {
+            let step = st.steps[i];
+            if (step.type === 'ENTER') {
+                activeStack.push({ n: step.n, val: 'Chờ...', hit: false });
+            } else if (step.type === 'HIT') {
+                if (activeStack.length) {
+                    activeStack[activeStack.length - 1].val = step.val;
+                    activeStack[activeStack.length - 1].hit = true;
+                }
+            } else if (step.type === 'BASE' || step.type === 'RETURN') {
+                if (activeStack.length) {
+                    activeStack[activeStack.length - 1].val = step.val;
+                }
+            } else if (step.type === 'POP') {
+                activeStack.pop();
+            }
+        }
+
+        let stackContainer = document.getElementById(`stack${tabNum}`);
+        stackContainer.innerHTML = '';
+        if (activeStack.length === 0) {
+            stackContainer.innerHTML = '<div style="color: #94a3b8; font-style: italic; text-align: center;">Stack rỗng</div>';
+        } else {
+            for (let i = activeStack.length - 1; i >= 0; i--) {
+                let item = activeStack[i];
+                let isTop = (i === activeStack.length - 1);
+                let itemDiv = document.createElement('div');
+                itemDiv.className = `stack-item ${isTop ? 'top' : ''} ${item.hit ? 'memo-hit' : ''}`;
+                itemDiv.innerHTML = `
+                    <span>F(${item.n}) ${item.hit ? '⚡[Khôi phục DP]' : ''}</span>
+                    <span>${item.val !== 'Chờ...' ? '➔ ' + item.val : '...'}</span>
+                `;
+                stackContainer.appendChild(itemDiv);
+            }
+        }
+
+        // 4. Nếu là Thẻ 2: Cập nhật Mảng Ghi Nhớ dp[]
+        if (tabNum === 2 && curr.dp) {
+            let dpGrid = document.getElementById('dpGrid2');
+            dpGrid.innerHTML = '';
+            curr.dp.forEach((val, idx) => {
+                let cell = document.createElement('div');
+                cell.className = `dp-cell ${val > 0 ? 'filled' : ''}`;
+                cell.innerHTML = `
+                    <div class="idx">dp[${idx}]</div>
+                    <div class="val">${val}</div>
+                `;
+                dpGrid.appendChild(cell);
+            });
+        }
+
+        // 5. Cập nhật Nhật ký Log
+        let logBox = document.getElementById(`log${tabNum}`);
+        let logItem = document.createElement('div');
+        logItem.innerText = `[Lượt ${st.index + 1}] ${curr.msg}`;
+        logBox.appendChild(logItem);
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // ĐIỀU KHIỂN BẰNG NÚT BẤM
+    function stepSim(tabNum) {
+        let st = simState[tabNum];
+        if (st.index === -1) {
+            let n = parseInt(document.getElementById(`inputN${tabNum}`).value);
+            if (tabNum === 1) {
+                let res = generateStepsTab1(n);
+                st.steps = res.steps;
+            } else {
+                let res = generateStepsTab2(n);
+                st.steps = res.steps;
+            }
+            document.getElementById(`log${tabNum}`).innerHTML = '';
+        }
+
+        if (st.index < st.steps.length - 1) {
+            st.index++;
+            updateUI(tabNum);
+            return true;
+        } else {
+            stopSim(tabNum);
+            return false;
+        }
+    }
+
+    function startSim(tabNum, auto) {
+        let st = simState[tabNum];
+        if (st.timer) stopSim(tabNum);
+
+        if (st.index >= st.steps.length - 1) {
+            resetSim(tabNum);
+        }
+
+        if (auto) {
+            stepSim(tabNum);
+            st.timer = setInterval(() => {
+                let hasNext = stepSim(tabNum);
+                if (!hasNext) stopSim(tabNum);
+            }, 800);
+        }
+    }
+
+    function stopSim(tabNum) {
+        if (simState[tabNum].timer) {
+            clearInterval(simState[tabNum].timer);
+            simState[tabNum].timer = null;
+        }
+    }
+
+    function resetSim(tabNum) {
+        stopSim(tabNum);
+        simState[tabNum] = { steps: [], index: -1, timer: null, callCount: 0 };
+        document.getElementById(`stack${tabNum}`).innerHTML = '<div style="color: #94a3b8; font-style: italic; text-align: center;">Stack rỗng</div>';
+        document.getElementById(`status${tabNum}`).innerText = 'Sẵn sàng mô phỏng.';
+        document.getElementById(`log${tabNum}`).innerHTML = '';
+        document.getElementById(`callCount${tabNum}`).innerText = 'Số lượt gọi F(n): 0';
+
+        let lineCount = tabNum === 1 ? 6 : 8;
+        for (let i = 1; i <= lineCount; i++) {
+            document.getElementById(`t${tabNum}_l${i}`).classList.remove('active');
+        }
+
+        if (tabNum === 2) {
+            document.getElementById('dpGrid2').innerHTML = '';
+        }
+    }
+</script>
+
+</body>
+</html>
